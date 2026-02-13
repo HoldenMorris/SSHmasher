@@ -1,0 +1,151 @@
+package view
+
+import (
+	"fmt"
+	"github.com/holden/sshmasher/internal/model"
+)
+
+templ KeysPage(keys []model.SSHKey) {
+	@Layout("Keys", "/keys") {
+		<hgroup>
+			<h2>SSH Keys</h2>
+			<p>Manage your SSH key pairs</p>
+		</hgroup>
+		<div id="key-generate">
+			@KeyGenerateForm()
+		</div>
+		<div id="keys-table">
+			@KeysTable(keys)
+		</div>
+	}
+}
+
+templ KeysTable(keys []model.SSHKey) {
+	if len(keys) == 0 {
+		@EmptyState("No SSH keys found. Generate one below.")
+	} else {
+		<figure>
+			<table>
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Type</th>
+						<th>Fingerprint</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody id="keys-tbody">
+					for _, key := range keys {
+						@KeyRow(key)
+					}
+				</tbody>
+			</table>
+		</figure>
+	}
+}
+
+templ KeyRow(key model.SSHKey) {
+	<tr id={ "key-" + key.Name }>
+		<td>
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/api/keys/%s", key.Name)) }
+				hx-get={ fmt.Sprintf("/api/keys/%s", key.Name) }
+				hx-target="#key-detail"
+				hx-swap="innerHTML"
+			>
+				{ key.Name }
+			</a>
+		</td>
+		<td>{ key.Type }</td>
+		<td><code class="fingerprint">{ key.Fingerprint }</code></td>
+		<td>
+			<button
+				hx-delete={ fmt.Sprintf("/api/keys/%s", key.Name) }
+				hx-confirm={ fmt.Sprintf("Delete key '%s'? This cannot be undone.", key.Name) }
+				hx-target="#keys-table"
+				hx-swap="innerHTML"
+				class="outline secondary"
+			>
+				Delete
+			</button>
+		</td>
+	</tr>
+}
+
+templ KeyGenerateForm() {
+	<details>
+		<summary role="button" class="outline">Generate New Key</summary>
+		<form
+			hx-post="/api/keys"
+			hx-target="#keys-table"
+			hx-swap="innerHTML"
+			hx-on::after-request="if(event.detail.successful) this.reset()"
+		>
+			<div class="grid">
+				<label>
+					Name
+					<input type="text" name="name" placeholder="id_ed25519" required/>
+				</label>
+				<label>
+					Type
+					<select name="type" required>
+						<option value="ed25519" selected>Ed25519 (recommended)</option>
+						<option value="rsa">RSA</option>
+						<option value="ecdsa">ECDSA</option>
+					</select>
+				</label>
+			</div>
+			<div class="grid">
+				<label>
+					Bits (RSA/ECDSA only)
+					<select name="bits">
+						<option value="0">Default</option>
+						<option value="2048">2048</option>
+						<option value="4096">4096</option>
+						<option value="256">256 (ECDSA)</option>
+						<option value="384">384 (ECDSA)</option>
+						<option value="521">521 (ECDSA)</option>
+					</select>
+				</label>
+				<label>
+					Comment
+					<input type="text" name="comment" placeholder="user@host"/>
+				</label>
+			</div>
+			<label>
+				Passphrase (optional)
+				<input type="password" name="passphrase" placeholder="Leave empty for no passphrase"/>
+			</label>
+			<button type="submit">Generate Key</button>
+		</form>
+	</details>
+	<div id="key-detail"></div>
+}
+
+templ KeyDetail(key model.SSHKey) {
+	<article>
+		<header>
+			<h3>{ key.Name }</h3>
+		</header>
+		<dl>
+			<dt>Type</dt>
+			<dd>{ key.Type }</dd>
+			<dt>Fingerprint</dt>
+			<dd><code class="fingerprint">{ key.Fingerprint }</code></dd>
+			<dt>Comment</dt>
+			<dd>{ key.Comment }</dd>
+			<dt>Has Private Key</dt>
+			<dd>
+				if key.HasPrivate {
+					Yes
+				} else {
+					No
+				}
+			</dd>
+		</dl>
+		<details>
+			<summary>Public Key</summary>
+			<pre><code>{ key.PublicKey }</code></pre>
+		</details>
+	</article>
+}

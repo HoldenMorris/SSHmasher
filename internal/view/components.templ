@@ -1,0 +1,31 @@
+package view
+
+templ Alert(message string, alertType string) {
+	<div class={ "alert", "alert-" + alertType } role="alert">
+		{ message }
+	</div>
+}
+
+templ EmptyState(message string) {
+	<div class="empty-state">
+		<p>{ message }</p>
+	</div>
+}
+
+templ Loading() {
+	<span class="htmx-indicator" aria-busy="true">Loading...</span>
+}
+
+templ ConfirmButton(label string, hxMethod string, hxUrl string, confirmMsg string) {
+	if hxMethod == "delete" {
+		<button
+			hx-delete={ hxUrl }
+			hx-confirm={ confirmMsg }
+			hx-target="closest tr"
+			hx-swap="outerHTML"
+			class="outline secondary"
+		>
+			{ label }
+		</button>
+	}
+}

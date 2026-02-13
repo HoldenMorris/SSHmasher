@@ -1,0 +1,58 @@
+/* SSHmasher custom styles */
+
+/* Active nav tab */
+nav a[aria-current="page"] {
+    font-weight: bold;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+/* HTMX loading indicator */
+.htmx-indicator {
+    display: none;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    display: inline-block;
+}
+
+/* Key fingerprint monospace */
+.fingerprint {
+    font-family: var(--pico-font-family-monospace);
+    font-size: 0.85em;
+}
+
+/* Raw editor textarea */
+textarea.raw-editor {
+    font-family: var(--pico-font-family-monospace);
+    font-size: 0.85em;
+    min-height: 400px;
+    resize: vertical;
+}
+
+/* Alert messages */
+.alert {
+    padding: var(--pico-spacing);
+    border-radius: var(--pico-border-radius);
+    margin-bottom: var(--pico-spacing);
+}
+.alert-success {
+    background-color: var(--pico-ins-color);
+    color: var(--pico-color);
+}
+.alert-error {
+    background-color: var(--pico-del-color);
+    color: var(--pico-color);
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: calc(var(--pico-spacing) * 3);
+    color: var(--pico-muted-color);
+}
+
+/* Confirmation dialog overlay */
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}

@@ -1,0 +1,31 @@
+# Binaries
+/sshmasher
+/sshmasher-desktop
+/desktop
+/bin/
+*.exe
+
+# Go
+/vendor/
+
+# Templ generated
+*_templ.go
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups created by app
+/backups/
+
+# Build / Wails artifacts
+/dist/
+/build/bin/
+/frontend/

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "SSHmasher",
+  "outputfilename": "sshmasher-desktop",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "holden",
+    "email": ""
+  },
+  "info": {
+    "companyName": "",
+    "productName": "SSHmasher",
+    "productVersion": "0.1.0",
+    "copyright": "",
+    "comments": "SSH key and config manager"
+  }
+}

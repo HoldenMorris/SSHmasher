@@ -1,0 +1,100 @@
+package view
+
+import (
+	"fmt"
+	"strconv"
+	"github.com/holden/sshmasher/internal/model"
+)
+
+templ KnownHostsPage(entries []model.KnownHostEntry) {
+	@Layout("Known Hosts", "/knownhosts") {
+		<hgroup>
+			<h2>Known Hosts</h2>
+			<p>Manage your SSH known hosts entries</p>
+		</hgroup>
+		<div class="grid">
+			<div>
+				<a href="/knownhosts" hx-get="/api/knownhosts" hx-target="#knownhosts-content" hx-swap="innerHTML" role="button" class="outline">Table View</a>
+			</div>
+			<div>
+				<a href="/knownhosts" hx-get="/api/knownhosts/raw" hx-target="#knownhosts-content" hx-swap="innerHTML" role="button" class="outline secondary">Raw Editor</a>
+			</div>
+		</div>
+		<div>
+			<input
+				type="search"
+				name="search"
+				placeholder="Filter hosts..."
+				hx-get="/api/knownhosts"
+				hx-target="#knownhosts-content"
+				hx-swap="innerHTML"
+				hx-trigger="input changed delay:300ms, search"
+			/>
+		</div>
+		<div id="knownhosts-content">
+			@KnownHostsTable(entries)
+		</div>
+	}
+}
+
+templ KnownHostsTable(entries []model.KnownHostEntry) {
+	if len(entries) == 0 {
+		@EmptyState("No known hosts entries found.")
+	} else {
+		<figure>
+			<table>
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>Host(s)</th>
+						<th>Key Type</th>
+						<th>Fingerprint</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody id="knownhosts-tbody">
+					for _, entry := range entries {
+						@KnownHostRow(entry)
+					}
+				</tbody>
+			</table>
+		</figure>
+	}
+}
+
+templ KnownHostRow(entry model.KnownHostEntry) {
+	<tr id={ fmt.Sprintf("kh-%d", entry.Line) }>
+		<td>{ strconv.Itoa(entry.Line) }</td>
+		<td>
+			if entry.IsHashed {
+				<em>(hashed)</em>
+			} else {
+				{ entry.Hosts }
+			}
+		</td>
+		<td>{ entry.KeyType }</td>
+		<td><code class="fingerprint">{ entry.Fingerprint }</code></td>
+		<td>
+			<button
+				hx-delete={ fmt.Sprintf("/api/knownhosts/%d", entry.Line) }
+				hx-confirm={ fmt.Sprintf("Remove known host entry on line %d?", entry.Line) }
+				hx-target="#knownhosts-content"
+				hx-swap="innerHTML"
+				class="outline secondary"
+			>
+				Remove
+			</button>
+		</td>
+	</tr>
+}
+
+templ KnownHostsRawEditor(content string) {
+	<form
+		hx-put="/api/knownhosts/raw"
+		hx-target="#knownhosts-content"
+		hx-swap="innerHTML"
+	>
+		<textarea name="content" class="raw-editor">{ content }</textarea>
+		<button type="submit">Save</button>
+	</form>
+}

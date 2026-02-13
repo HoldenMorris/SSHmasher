@@ -1,0 +1,96 @@
+package view
+
+import (
+	"fmt"
+	"github.com/holden/sshmasher/internal/model"
+)
+
+templ BackupPage(backups []model.Backup) {
+	@Layout("Backup", "/backup") {
+		<hgroup>
+			<h2>Backup &amp; Restore</h2>
+			<p>Create and manage snapshots of your ~/.ssh directory</p>
+		</hgroup>
+		<div>
+			<button
+				hx-post="/api/backup"
+				hx-target="#backup-list"
+				hx-swap="innerHTML"
+			>
+				Create Backup Now
+			</button>
+		</div>
+		<div id="backup-list">
+			@BackupList(backups)
+		</div>
+	}
+}
+
+templ BackupList(backups []model.Backup) {
+	if len(backups) == 0 {
+		@EmptyState("No backups found. Create one to get started.")
+	} else {
+		<figure>
+			<table>
+				<thead>
+					<tr>
+						<th>Filename</th>
+						<th>Size</th>
+						<th>Created</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, backup := range backups {
+						@BackupRow(backup)
+					}
+				</tbody>
+			</table>
+		</figure>
+	}
+}
+
+templ BackupRow(backup model.Backup) {
+	<tr>
+		<td>{ backup.Filename }</td>
+		<td>{ formatSize(backup.Size) }</td>
+		<td>{ backup.CreatedAt.Format("2006-01-02 15:04:05") }</td>
+		<td>
+			<div class="grid">
+				<button
+					hx-post={ fmt.Sprintf("/api/backup/%s/restore", backup.Filename) }
+					hx-confirm={ fmt.Sprintf("Restore from '%s'? Current ~/.ssh will be backed up first.", backup.Filename) }
+					hx-target="#backup-list"
+					hx-swap="innerHTML"
+					class="outline"
+				>
+					Restore
+				</button>
+				<button
+					hx-delete={ fmt.Sprintf("/api/backup/%s", backup.Filename) }
+					hx-confirm={ fmt.Sprintf("Delete backup '%s'?", backup.Filename) }
+					hx-target="#backup-list"
+					hx-swap="innerHTML"
+					class="outline secondary"
+				>
+					Delete
+				</button>
+			</div>
+		</td>
+	</tr>
+}
+
+func formatSize(bytes int64) string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+	)
+	switch {
+	case bytes >= MB:
+		return fmt.Sprintf("%.1f MB", float64(bytes)/float64(MB))
+	case bytes >= KB:
+		return fmt.Sprintf("%.1f KB", float64(bytes)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", bytes)
+	}
+}

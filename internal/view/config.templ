@@ -1,0 +1,174 @@
+package view
+
+import (
+	"fmt"
+	"github.com/holden/sshmasher/internal/model"
+)
+
+templ ConfigPage(hosts []model.HostEntry) {
+	@Layout("Config", "/config") {
+		<hgroup>
+			<h2>SSH Config</h2>
+			<p>Manage your SSH host configurations</p>
+		</hgroup>
+		<div class="grid">
+			<div>
+				<a href="/config" hx-get="/api/config/hosts" hx-target="#config-content" hx-swap="innerHTML" role="button" class="outline">Hosts View</a>
+			</div>
+			<div>
+				<a href="/config" hx-get="/api/config/raw" hx-target="#config-content" hx-swap="innerHTML" role="button" class="outline secondary">Raw Editor</a>
+			</div>
+		</div>
+		<div id="config-add">
+			@ConfigAddForm()
+		</div>
+		<div id="config-content">
+			@ConfigHostsTable(hosts)
+		</div>
+	}
+}
+
+templ ConfigHostsTable(hosts []model.HostEntry) {
+	if len(hosts) == 0 {
+		@EmptyState("No SSH hosts configured. Add one above.")
+	} else {
+		<figure>
+			<table>
+				<thead>
+					<tr>
+						<th>Alias</th>
+						<th>HostName</th>
+						<th>User</th>
+						<th>Port</th>
+						<th>Identity File</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, host := range hosts {
+						@ConfigHostRow(host)
+					}
+				</tbody>
+			</table>
+		</figure>
+	}
+}
+
+templ ConfigHostRow(host model.HostEntry) {
+	<tr id={ "host-" + host.Alias }>
+		<td>{ host.Alias }</td>
+		<td>{ host.HostName }</td>
+		<td>{ host.User }</td>
+		<td>{ host.Port }</td>
+		<td>{ host.IdentityFile }</td>
+		<td>
+			<div class="grid">
+				<button
+					hx-get={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
+					hx-target="#config-edit"
+					hx-swap="innerHTML"
+					class="outline"
+				>
+					Edit
+				</button>
+				<button
+					hx-delete={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
+					hx-confirm={ fmt.Sprintf("Delete host '%s'?", host.Alias) }
+					hx-target="#config-content"
+					hx-swap="innerHTML"
+					class="outline secondary"
+				>
+					Delete
+				</button>
+			</div>
+		</td>
+	</tr>
+}
+
+templ ConfigAddForm() {
+	<details>
+		<summary role="button" class="outline">Add Host</summary>
+		<form
+			hx-post="/api/config/hosts"
+			hx-target="#config-content"
+			hx-swap="innerHTML"
+			hx-on::after-request="if(event.detail.successful) this.reset()"
+		>
+			<div class="grid">
+				<label>
+					Alias
+					<input type="text" name="alias" placeholder="myserver" required/>
+				</label>
+				<label>
+					HostName
+					<input type="text" name="hostname" placeholder="192.168.1.100" required/>
+				</label>
+			</div>
+			<div class="grid">
+				<label>
+					User
+					<input type="text" name="user" placeholder="root"/>
+				</label>
+				<label>
+					Port
+					<input type="text" name="port" placeholder="22"/>
+				</label>
+			</div>
+			<label>
+				Identity File
+				<input type="text" name="identityfile" placeholder="~/.ssh/id_ed25519"/>
+			</label>
+			<button type="submit">Add Host</button>
+		</form>
+	</details>
+	<div id="config-edit"></div>
+}
+
+templ ConfigEditForm(host model.HostEntry) {
+	<article>
+		<header>
+			<h3>Edit: { host.Alias }</h3>
+		</header>
+		<form
+			hx-put={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
+			hx-target="#config-content"
+			hx-swap="innerHTML"
+		>
+			<div class="grid">
+				<label>
+					HostName
+					<input type="text" name="hostname" value={ host.HostName }/>
+				</label>
+				<label>
+					User
+					<input type="text" name="user" value={ host.User }/>
+				</label>
+			</div>
+			<div class="grid">
+				<label>
+					Port
+					<input type="text" name="port" value={ host.Port }/>
+				</label>
+				<label>
+					Identity File
+					<input type="text" name="identityfile" value={ host.IdentityFile }/>
+				</label>
+			</div>
+			<div class="grid">
+				<button type="submit">Save</button>
+				<button type="button" class="outline secondary" hx-get="/api/config/hosts" hx-target="#config-content" hx-swap="innerHTML">Cancel</button>
+			</div>
+		</form>
+	</article>
+}
+
+templ ConfigRawEditor(content string) {
+	<form
+		hx-put="/api/config/raw"
+		hx-target="#config-content"
+		hx-swap="innerHTML"
+	>
+		<textarea name="content" class="raw-editor">{ content }</textarea>
+		<button type="submit">Save</button>
+	</form>
+}

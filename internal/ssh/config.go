@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -238,26 +239,34 @@ func (d *SSHDir) IsKeyFile(identityFile string) bool {
 // OpenTerminal opens a terminal and runs SSH to connect to the given host.
 // It opens the default terminal for the current OS.
 func OpenTerminal(alias string) error {
+	log.Printf("[DEBUG] OpenTerminal called with alias: %s", alias)
+	
 	// Validate the alias to prevent command injection
 	// Only allow alphanumeric, hyphen, underscore, and dot
 	for _, char := range alias {
 		if !isValidAliasChar(char) {
+			log.Printf("[DEBUG] Invalid alias character: %c", char)
 			return fmt.Errorf("invalid alias: contains forbidden characters")
 		}
 	}
 
 	switch runtime.GOOS {
 	case "darwin":
+		log.Printf("[DEBUG] macOS detected, using 'open -a Terminal'")
 		// macOS: Use 'open -a Terminal' to open the default Terminal.app
 		cmd := exec.Command("open", "-a", "Terminal", "--args", "ssh", alias)
+		log.Printf("[DEBUG] Executing: %s", cmd.String())
 		return cmd.Start()
 
 	case "linux":
+		log.Printf("[DEBUG] Linux detected, searching for terminal")
 		// Try to find the default terminal
 		term := getLinuxTerminal()
 		if term == "" {
 			return fmt.Errorf("no supported terminal emulator found")
 		}
+		
+		log.Printf("[DEBUG] Selected terminal: %s", term)
 		
 		// Different terminals use different flags
 		var cmd *exec.Cmd
@@ -272,36 +281,56 @@ func OpenTerminal(alias string) error {
 			// Fallback: try with -e flag
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		}
+		
+		log.Printf("[DEBUG] Executing: %s", cmd.String())
 		return cmd.Start()
 
 	case "windows":
+		log.Printf("[DEBUG] Windows detected")
 		// Windows: Try Windows Terminal first, then use 'start' command
 		if _, err := exec.LookPath("wt"); err == nil {
+			log.Printf("[DEBUG] Using Windows Terminal (wt)")
 			cmd := exec.Command("wt", "ssh", alias)
 			return cmd.Start()
 		}
 		// Use 'start' to open the default terminal handler
+		log.Printf("[DEBUG] Using cmd /c start")
 		cmd := exec.Command("cmd", "/c", "start", "ssh", alias)
 		return cmd.Start()
 
 	default:
+		log.Printf("[DEBUG] Unsupported OS: %s", runtime.GOOS)
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 }
 
 // getLinuxTerminal finds the best available terminal emulator on Linux
 func getLinuxTerminal() string {
-	// 1. Try the Debian/Ubuntu 'x-terminal-emulator' symlink (most reliable)
+	// Check for user config first
+	if term := getTerminalFromConfig(); term != "" {
+		log.Printf("[DEBUG] Using terminal from config: %s", term)
+		return term
+	}
+	
+	// 1. Try update-alternatives to get the x-terminal-emulator target
+	if term := getTerminalFromAlternatives(); term != "" {
+		log.Printf("[DEBUG] Found terminal from update-alternatives: %s", term)
+		return term
+	}
+	
+	// 2. Try the x-terminal-emulator symlink directly
 	if _, err := exec.LookPath("x-terminal-emulator"); err == nil {
+		log.Printf("[DEBUG] Using x-terminal-emulator symlink")
 		return "x-terminal-emulator"
 	}
 	
-	// 2. Try exo-open (Xfce, often available on other DEs)
+	// 3. Try exo-open (Xfce, often available on other DEs)
 	if _, err := exec.LookPath("exo-open"); err == nil {
+		log.Printf("[DEBUG] Using exo-open")
 		return "exo-open"
 	}
 	
-	// 3. Fallback list of common terminals in order of preference
+	// 4. Fallback list of common terminals in order of preference
 	terminals := []string{
 		"gnome-terminal",
 		"konsole", 
@@ -314,10 +343,77 @@ func getLinuxTerminal() string {
 	
 	for _, term := range terminals {
 		if _, err := exec.LookPath(term); err == nil {
+			log.Printf("[DEBUG] Found terminal from fallback list: %s", term)
 			return term
 		}
 	}
 	
+	log.Printf("[DEBUG] No terminal emulator found")
+	return ""
+}
+
+// getTerminalFromConfig reads terminal preference from ~/.config/sshmasher/config
+func getTerminalFromConfig() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	
+	configPath := filepath.Join(home, ".config", "sshmasher", "config")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("[DEBUG] Error reading config file: %v", err)
+		}
+		return ""
+	}
+	
+	// Parse config file looking for terminal= setting
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "terminal=") {
+			term := strings.TrimPrefix(line, "terminal=")
+			term = strings.TrimSpace(term)
+			// Verify the terminal exists
+			if _, err := exec.LookPath(term); err == nil {
+				return term
+			}
+			log.Printf("[DEBUG] Config specifies terminal '%s' but it's not in PATH", term)
+		}
+	}
+	
+	return ""
+}
+
+// getTerminalFromAlternatives uses update-alternatives to find the x-terminal-emulator target
+func getTerminalFromAlternatives() string {
+	// Run update-alternatives to get the current x-terminal-emulator
+	cmd := exec.Command("update-alternatives", "--quiet", "--display", "x-terminal-emulator")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[DEBUG] update-alternatives failed: %v", err)
+		return ""
+	}
+	
+	// Parse output to find "link currently points to"
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "link currently points to") {
+			parts := strings.Split(line, "link currently points to")
+			if len(parts) == 2 {
+				path := strings.TrimSpace(parts[1])
+				// Extract the terminal name from the path
+				name := filepath.Base(path)
+				// Remove .wrapper suffix if present (e.g., gnome-terminal.wrapper)
+				name = strings.TrimSuffix(name, ".wrapper")
+				log.Printf("[DEBUG] update-alternatives points to: %s (name: %s)", path, name)
+				return name
+			}
+		}
+	}
+	
+	log.Printf("[DEBUG] Could not parse update-alternatives output")
 	return ""
 }
 

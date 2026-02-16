@@ -20,6 +20,49 @@ templ KnownHostsPage(entries []model.KnownHostEntry) {
 				<a href="/knownhosts" hx-get="/api/knownhosts/raw" hx-target="#knownhosts-content" hx-swap="innerHTML" role="button" class="outline secondary">Raw Editor</a>
 			</div>
 		</div>
+		<details>
+			<summary role="button" class="outline">Add Host</summary>
+			<form
+				hx-post="/api/knownhosts"
+				hx-target="#knownhosts-content"
+				hx-swap="innerHTML"
+				hx-on::after-request="if(event.detail.successful) this.reset()"
+			>
+				<div class="grid">
+					<label>
+						Hostname
+						<input type="text" name="hostname" placeholder="github.com" required/>
+					</label>
+					<label>
+						Port
+						<input type="text" name="port" placeholder="22"/>
+					</label>
+				</div>
+				<button type="submit">Add Host</button>
+			</form>
+			<hr/>
+			<p><strong>Common hosts:</strong></p>
+			<div class="grid">
+				<button
+					hx-post="/api/knownhosts"
+					hx-vals='{"hostname": "github.com", "port": "22"}'
+					hx-target="#knownhosts-content"
+					hx-swap="innerHTML"
+					class="outline"
+				>
+					<i class="fa-brands fa-github"></i> Add GitHub
+				</button>
+				<button
+					hx-post="/api/knownhosts"
+					hx-vals='{"hostname": "bitbucket.org", "port": "22"}'
+					hx-target="#knownhosts-content"
+					hx-swap="innerHTML"
+					class="outline"
+				>
+					<i class="fa-brands fa-bitbucket"></i> Add Bitbucket
+				</button>
+			</div>
+		</details>
 		<div>
 			<input
 				type="search"
@@ -113,6 +156,17 @@ templ KnownHostLookupResults(hostname string, port string, entries []model.Known
 		</header>
 		if len(entries) == 0 {
 			<p><em>No matching entries found in known_hosts.</em></p>
+			<form
+				hx-post="/api/knownhosts"
+				hx-target="#knownhosts-content"
+				hx-swap="innerHTML"
+			>
+				<input type="hidden" name="hostname" value={ hostname }/>
+				<input type="hidden" name="port" value={ port }/>
+				<button type="submit">
+					<i class="fa-solid fa-plus"></i> Add { hostname } to known_hosts
+				</button>
+			</form>
 		} else {
 			<table>
 				<thead>

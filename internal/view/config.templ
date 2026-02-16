@@ -92,7 +92,7 @@ templ ConfigHostRow(host model.HostEntry, keys []model.SSHKey, dir *ssh.SSHDir) 
 		<td>
 			<button
 				hx-get={ fmt.Sprintf("/api/knownhosts/lookup?hostname=%s&port=%s", host.HostName, host.Port) }
-				hx-target="#knownhost-lookup-result"
+				hx-target={ "#knownhost-lookup-result-" + host.Alias }
 				hx-swap="innerHTML"
 				class="outline"
 				aria-label="Check known_hosts"
@@ -123,7 +123,7 @@ templ ConfigHostRow(host model.HostEntry, keys []model.SSHKey, dir *ssh.SSHDir) 
 		</td>
 	</tr>
 	<tr>
-		<td colspan="6" id="knownhost-lookup-result"></td>
+		<td colspan="6" id={ "knownhost-lookup-result-" + host.Alias }></td>
 	</tr>
 }
 

@@ -116,6 +116,40 @@ func LookupKnownHost(dir *SSHDir, hostname string, port string) ([]model.KnownHo
 	return entries, nil
 }
 
+// AddKnownHost adds a hostname to known_hosts by scanning it with ssh-keyscan.
+// If the host already exists, it will be updated.
+func AddKnownHost(dir *SSHDir, hostname string, port string) error {
+	if err := dir.EnsureDir(); err != nil {
+		return err
+	}
+
+	// Use ssh-keyscan to get the host key
+	cmd := exec.Command("ssh-keyscan", "-H", "-p", "22", hostname)
+	if port != "" && port != "22" {
+		cmd = exec.Command("ssh-keyscan", "-H", "-p", port, hostname)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ssh-keyscan failed: %s: %w", string(output), err)
+	}
+
+	// Remove existing entries for this host first
+	existing, _ := ListKnownHosts(dir)
+	var newContent strings.Builder
+	for _, entry := range existing {
+		// Skip entries matching this host
+		if !strings.Contains(entry.Hosts, hostname) {
+			newContent.WriteString(fmt.Sprintf("%s %s %s\n", entry.Hosts, entry.KeyType, entry.Key))
+		}
+	}
+
+	// Append new entries
+	newContent.WriteString(string(output))
+
+	return os.WriteFile(dir.KnownHostsPath(), []byte(newContent.String()), 0644)
+}
+
 func parseKnownHostLine(lineNum int, line string) model.KnownHostEntry {
 	entry := model.KnownHostEntry{Line: lineNum}
 

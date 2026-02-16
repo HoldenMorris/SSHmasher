@@ -109,3 +109,32 @@ func (kh *KnownHosts) Lookup(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, entries)
 }
+
+func (kh *KnownHosts) Add(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	hostname := r.FormValue("hostname")
+	port := r.FormValue("port")
+
+	if hostname == "" {
+		http.Error(w, "hostname required", http.StatusBadRequest)
+		return
+	}
+
+	if err := ssh.AddKnownHost(kh.Dir, hostname, port); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return updated list
+	entries, _ := ssh.ListKnownHosts(kh.Dir)
+	if isHTMX(r) {
+		view.KnownHostsTable(entries).Render(r.Context(), w)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, entries)
+}

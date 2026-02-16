@@ -280,9 +280,9 @@ func OpenTerminal(alias string) error {
 		case "konsole":
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		case "terminator":
-			// Terminator expects -e followed by a SINGLE command string
-			// Format: terminator -e "ssh alias; bash"
-			cmd = exec.Command(term, "-e", "ssh "+alias+"; bash")
+			// Terminator uses -x flag to execute command
+			// Format: terminator -x 'ssh alias; bash'
+			cmd = exec.Command(term, "-x", "ssh "+alias+"; bash")
 		case "xterm", "alacritty", "kitty":
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		default:

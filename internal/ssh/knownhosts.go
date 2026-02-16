@@ -155,6 +155,7 @@ func AddKnownHost(dir *SSHDir, hostname string, port string) error {
 func MatchConfigHostsToKnownHosts(dir *SSHDir, configHosts []model.HostEntry) map[int][]string {
 	lineToHosts := make(map[int][]string)
 
+	// First check config hosts
 	for _, host := range configHosts {
 		target := host.HostName
 		if host.Port != "" && host.Port != "22" {
@@ -180,6 +181,44 @@ func MatchConfigHostsToKnownHosts(dir *SSHDir, configHosts []model.HostEntry) ma
 					fmt.Sscanf(lineNumStr, "%d", &lineNum)
 					if lineNum > 0 {
 						lineToHosts[lineNum] = append(lineToHosts[lineNum], host.Alias)
+					}
+				}
+			}
+		}
+	}
+
+	// Also check common hosts
+	commonHosts := []string{"github.com", "bitbucket.org", "gitlab.com"}
+	for _, hostname := range commonHosts {
+		cmd := exec.Command("ssh-keygen", "-F", hostname, "-f", dir.KnownHostsPath())
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			continue // Host not found or error
+		}
+
+		// Parse output to find line number
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "# Host") && strings.Contains(line, "found: line") {
+				// Extract line number: "# Host hostname found: line X"
+				parts := strings.Split(line, "line ")
+				if len(parts) == 2 {
+					lineNumStr := strings.TrimSpace(parts[1])
+					lineNum := 0
+					fmt.Sscanf(lineNumStr, "%d", &lineNum)
+					if lineNum > 0 {
+						// Check if this hostname is already added for this line
+						alreadyAdded := false
+						for _, existing := range lineToHosts[lineNum] {
+							if existing == hostname {
+								alreadyAdded = true
+								break
+							}
+						}
+						if !alreadyAdded {
+							lineToHosts[lineNum] = append(lineToHosts[lineNum], hostname)
+						}
 					}
 				}
 			}

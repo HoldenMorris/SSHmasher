@@ -42,7 +42,11 @@ func (p *Pages) KnownHostsPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		entries = nil
 	}
-	view.KnownHostsPage(entries).Render(r.Context(), w)
+	configHosts, err := ssh.ListHosts(p.Dir)
+	if err != nil {
+		configHosts = nil
+	}
+	view.KnownHostsPage(entries, configHosts).Render(r.Context(), w)
 }
 
 func (p *Pages) BackupPage(w http.ResponseWriter, r *http.Request) {

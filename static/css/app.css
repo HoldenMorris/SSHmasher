@@ -68,3 +68,14 @@ dialog::backdrop {
 hgroup + .grid {
     margin-bottom: var(--pico-spacing);
 }
+
+/* Hostname tags in known_hosts table */
+.hostname-tag {
+    display: inline-block;
+    padding: 0.2em 0.5em;
+    background-color: var(--pico-primary-background);
+    color: var(--pico-primary-inverse);
+    border-radius: var(--pico-border-radius);
+    font-size: 0.85em;
+    font-weight: 600;
+}

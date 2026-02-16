@@ -248,44 +248,77 @@ func OpenTerminal(alias string) error {
 
 	switch runtime.GOOS {
 	case "darwin":
-		// macOS: Uses AppleScript to tell Terminal to run the command
-		script := fmt.Sprintf("tell application \"Terminal\" to do script \"ssh %s\"", alias)
-		cmd := exec.Command("osascript", "-e", script)
+		// macOS: Use 'open -a Terminal' to open the default Terminal.app
+		cmd := exec.Command("open", "-a", "Terminal", "--args", "ssh", alias)
 		return cmd.Start()
 
 	case "linux":
-		// Try common Linux terminals
-		terminals := []string{"gnome-terminal", "konsole", "xfce4-terminal", "xterm", "alacritty", "kitty"}
-		for _, term := range terminals {
-			if _, err := exec.LookPath(term); err == nil {
-				var cmd *exec.Cmd
-				switch term {
-				case "gnome-terminal", "xfce4-terminal":
-					cmd = exec.Command(term, "--", "ssh", alias)
-				case "konsole":
-					cmd = exec.Command(term, "-e", "ssh", alias)
-				case "xterm", "alacritty", "kitty":
-					cmd = exec.Command(term, "-e", "ssh", alias)
-				default:
-					cmd = exec.Command(term, "-e", "ssh", alias)
-				}
-				return cmd.Start()
-			}
+		// Try to find the default terminal
+		term := getLinuxTerminal()
+		if term == "" {
+			return fmt.Errorf("no supported terminal emulator found")
 		}
-		return fmt.Errorf("no supported terminal emulator found")
+		
+		// Different terminals use different flags
+		var cmd *exec.Cmd
+		switch term {
+		case "gnome-terminal", "xfce4-terminal", "x-terminal-emulator":
+			cmd = exec.Command(term, "--", "ssh", alias)
+		case "konsole":
+			cmd = exec.Command(term, "-e", "ssh", alias)
+		case "xterm", "alacritty", "kitty", "terminator":
+			cmd = exec.Command(term, "-e", "ssh", alias)
+		default:
+			// Fallback: try with -e flag
+			cmd = exec.Command(term, "-e", "ssh", alias)
+		}
+		return cmd.Start()
 
 	case "windows":
-		// Windows: Try Windows Terminal first, then cmd
+		// Windows: Try Windows Terminal first, then use 'start' command
 		if _, err := exec.LookPath("wt"); err == nil {
 			cmd := exec.Command("wt", "ssh", alias)
 			return cmd.Start()
 		}
+		// Use 'start' to open the default terminal handler
 		cmd := exec.Command("cmd", "/c", "start", "ssh", alias)
 		return cmd.Start()
 
 	default:
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
+}
+
+// getLinuxTerminal finds the best available terminal emulator on Linux
+func getLinuxTerminal() string {
+	// 1. Try the Debian/Ubuntu 'x-terminal-emulator' symlink (most reliable)
+	if _, err := exec.LookPath("x-terminal-emulator"); err == nil {
+		return "x-terminal-emulator"
+	}
+	
+	// 2. Try exo-open (Xfce, often available on other DEs)
+	if _, err := exec.LookPath("exo-open"); err == nil {
+		return "exo-open"
+	}
+	
+	// 3. Fallback list of common terminals in order of preference
+	terminals := []string{
+		"gnome-terminal",
+		"konsole", 
+		"xfce4-terminal",
+		"terminator",
+		"alacritty",
+		"kitty",
+		"xterm",
+	}
+	
+	for _, term := range terminals {
+		if _, err := exec.LookPath(term); err == nil {
+			return term
+		}
+	}
+	
+	return ""
 }
 
 func isValidAliasChar(char rune) bool {

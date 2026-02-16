@@ -182,3 +182,17 @@ func DeleteBackup(dir *SSHDir, filename string) error {
 	}
 	return os.Remove(filepath.Join(dir.BackupDir(), filename))
 }
+
+// GetBackupPath returns the full path to a backup file.
+func GetBackupPath(dir *SSHDir, filename string) (string, error) {
+	// Validate filename to prevent path traversal
+	if strings.Contains(filename, "/") || strings.Contains(filename, "..") {
+		return "", fmt.Errorf("invalid backup filename")
+	}
+	backupPath := filepath.Join(dir.BackupDir(), filename)
+	// Check if file exists
+	if _, err := os.Stat(backupPath); err != nil {
+		return "", fmt.Errorf("backup not found: %s", filename)
+	}
+	return backupPath, nil
+}

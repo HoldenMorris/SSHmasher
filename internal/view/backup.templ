@@ -57,6 +57,14 @@ templ BackupRow(backup model.Backup) {
 		<td>{ backup.CreatedAt.Format("2006-01-02 15:04:05") }</td>
 		<td>
 			<div class="grid">
+				<a
+					href={ fmt.Sprintf("/api/backup/%s/download", backup.Filename) }
+					role="button"
+					class="outline"
+					download
+				>
+					<i class="fa-solid fa-download"></i>
+				</a>
 				<button
 					hx-post={ fmt.Sprintf("/api/backup/%s/restore", backup.Filename) }
 					hx-confirm={ fmt.Sprintf("Restore from '%s'? Current ~/.ssh will be backed up first.", backup.Filename) }
@@ -73,7 +81,7 @@ templ BackupRow(backup model.Backup) {
 					hx-swap="innerHTML"
 					class="outline secondary"
 				>
-					Delete
+					<i class="fa-solid fa-trash"></i>
 				</button>
 			</div>
 		</td>

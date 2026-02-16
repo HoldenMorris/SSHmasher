@@ -61,6 +61,7 @@ func NewRouter(dir *ssh.SSHDir, staticFS fs.FS) *http.ServeMux {
 	// API: Backup
 	mux.HandleFunc("GET /api/backup", backup.List)
 	mux.HandleFunc("POST /api/backup", backup.Create)
+	mux.HandleFunc("GET /api/backup/{filename}/download", backup.Download)
 	mux.HandleFunc("POST /api/backup/{filename}/restore", backup.Restore)
 	mux.HandleFunc("DELETE /api/backup/{filename}", backup.Delete)
 

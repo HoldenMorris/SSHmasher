@@ -1,6 +1,16 @@
 Project Plan for Building the App
 Assuming we proceed with a custom build (since no perfect match exists), here's an initial project plan for a Golang-based app called "SSHManager" (placeholder name). It will use HTML/CSS/JS for the GUI, with options for self-hosted (web server mode) or embedded (desktop app via webview). The app will focus on managing the ~/.ssh folder: keys, config, known_hosts, etc. We'll aim for a minimal viable product (MVP) first, then iterate.
 
+## Project Tracking
+
+**Always keep these files up to date**
+
+`docs/TODO.md` tracks bugs, open items, and planned work.
+When completing a task, fixing a bug, or discovering new work, update `docs/TODO.md` **Before AND After doing work** to reflect the current state.
+
+`docs/plans/{FEATURE NAME}.md` Once a PLAN is devised added to the TODO fil Features section and save the plan in the folder.
+
+
 1. Project Overview
 
 Goal: Create a user-friendly tool to view, edit, generate, and manage SSH-related files in ~/.ssh without needing CLI commands. It should run locally, support cross-platform (Linux/Mac/Windows), and provide a web-based GUI.

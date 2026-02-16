@@ -57,3 +57,17 @@ func (b *Backup) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	b.List(w, r)
 }
+
+func (b *Backup) Download(w http.ResponseWriter, r *http.Request) {
+	filename := r.PathValue("filename")
+	
+	backupPath, err := ssh.GetBackupPath(b.Dir, filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	w.Header().Set("Content-Type", "application/gzip")
+	http.ServeFile(w, r, backupPath)
+}

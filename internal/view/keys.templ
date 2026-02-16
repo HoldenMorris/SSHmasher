@@ -2,8 +2,50 @@ package view
 
 import (
 	"fmt"
+	"time"
 	"github.com/holden/sshmasher/internal/model"
 )
+
+func formatRelativeTime(t time.Time) string {
+	duration := time.Since(t)
+	
+	if duration < time.Minute {
+		return "just now"
+	}
+	if duration < time.Hour {
+		mins := int(duration.Minutes())
+		if mins == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", mins)
+	}
+	if duration < 24*time.Hour {
+		hours := int(duration.Hours())
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	}
+	if duration < 30*24*time.Hour {
+		days := int(duration.Hours() / 24)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	}
+	if duration < 365*24*time.Hour {
+		months := int(duration.Hours() / 24 / 30)
+		if months == 1 {
+			return "1 month ago"
+		}
+		return fmt.Sprintf("%d months ago", months)
+	}
+	years := int(duration.Hours() / 24 / 365)
+	if years == 1 {
+		return "1 year ago"
+	}
+	return fmt.Sprintf("%d years ago", years)
+}
 
 func formatFileSize(bytes int64) string {
 	if bytes == 0 {
@@ -73,6 +115,7 @@ templ KeysTable(keys []model.SSHKey, refCount map[string]int) {
 						<th>Type</th>
 						<th>Comment</th>
 						<th>Size</th>
+						<th>Modified</th>
 						<th>Configs</th>
 						<th>Actions</th>
 					</tr>
@@ -95,6 +138,7 @@ templ KeyRow(key model.SSHKey, refCount map[string]int) {
 		<td>{ key.Type }</td>
 		<td>{ key.Comment }</td>
 		<td>{ formatFileSize(key.Size) }</td>
+		<td>{ formatRelativeTime(key.ModTime) }</td>
 		<td>
 			{ fmt.Sprintf("%d", refCount[key.Name]) }
 		</td>

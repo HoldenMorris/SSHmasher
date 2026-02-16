@@ -150,6 +150,45 @@ func AddKnownHost(dir *SSHDir, hostname string, port string) error {
 	return os.WriteFile(dir.KnownHostsPath(), []byte(newContent.String()), 0644)
 }
 
+// MatchConfigHostsToKnownHosts uses ssh-keygen -F to lookup each config host
+// and returns a map of line numbers to config host aliases
+func MatchConfigHostsToKnownHosts(dir *SSHDir, configHosts []model.HostEntry) map[int][]string {
+	lineToHosts := make(map[int][]string)
+
+	for _, host := range configHosts {
+		target := host.HostName
+		if host.Port != "" && host.Port != "22" {
+			target = fmt.Sprintf("[%s]:%s", host.HostName, host.Port)
+		}
+
+		cmd := exec.Command("ssh-keygen", "-F", target, "-f", dir.KnownHostsPath())
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			continue // Host not found or error
+		}
+
+		// Parse output to find line number
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "# Host") && strings.Contains(line, "found: line") {
+				// Extract line number: "# Host [hostname]:port found: line X"
+				parts := strings.Split(line, "line ")
+				if len(parts) == 2 {
+					lineNumStr := strings.TrimSpace(parts[1])
+					lineNum := 0
+					fmt.Sscanf(lineNumStr, "%d", &lineNum)
+					if lineNum > 0 {
+						lineToHosts[lineNum] = append(lineToHosts[lineNum], host.Alias)
+					}
+				}
+			}
+		}
+	}
+
+	return lineToHosts
+}
+
 func parseKnownHostLine(lineNum int, line string) model.KnownHostEntry {
 	entry := model.KnownHostEntry{Line: lineNum}
 

@@ -46,7 +46,9 @@ func (p *Pages) KnownHostsPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		configHosts = nil
 	}
-	view.KnownHostsPage(entries, configHosts).Render(r.Context(), w)
+	// Build map of line numbers to config host aliases using ssh-keygen -F
+	lineToHosts := ssh.MatchConfigHostsToKnownHosts(p.Dir, configHosts)
+	view.KnownHostsPage(entries, configHosts, lineToHosts).Render(r.Context(), w)
 }
 
 func (p *Pages) BackupPage(w http.ResponseWriter, r *http.Request) {

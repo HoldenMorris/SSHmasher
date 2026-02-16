@@ -22,11 +22,12 @@ func (kh *KnownHosts) List(w http.ResponseWriter, r *http.Request) {
 		entries = nil
 	}
 	configHosts, _ := ssh.ListHosts(kh.Dir)
+	lineToHosts := ssh.MatchConfigHostsToKnownHosts(kh.Dir, configHosts)
 	if search != "" {
 		entries = ssh.FilterKnownHosts(entries, search)
 	}
 	if isHTMX(r) {
-		view.KnownHostsTable(entries, configHosts).Render(r.Context(), w)
+		view.KnownHostsTable(entries, lineToHosts).Render(r.Context(), w)
 		return
 	}
 	writeJSON(w, entries)
@@ -47,8 +48,9 @@ func (kh *KnownHosts) Delete(w http.ResponseWriter, r *http.Request) {
 
 	entries, _ := ssh.ListKnownHosts(kh.Dir)
 	configHosts, _ := ssh.ListHosts(kh.Dir)
+	lineToHosts := ssh.MatchConfigHostsToKnownHosts(kh.Dir, configHosts)
 	if isHTMX(r) {
-		view.KnownHostsTable(entries, configHosts).Render(r.Context(), w)
+		view.KnownHostsTable(entries, lineToHosts).Render(r.Context(), w)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -85,7 +87,8 @@ func (kh *KnownHosts) PutRaw(w http.ResponseWriter, r *http.Request) {
 	if isHTMX(r) {
 		entries, _ := ssh.ListKnownHosts(kh.Dir)
 		configHosts, _ := ssh.ListHosts(kh.Dir)
-		view.KnownHostsTable(entries, configHosts).Render(r.Context(), w)
+		lineToHosts := ssh.MatchConfigHostsToKnownHosts(kh.Dir, configHosts)
+		view.KnownHostsTable(entries, lineToHosts).Render(r.Context(), w)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -135,8 +138,9 @@ func (kh *KnownHosts) Add(w http.ResponseWriter, r *http.Request) {
 	// Return updated list
 	entries, _ := ssh.ListKnownHosts(kh.Dir)
 	configHosts, _ := ssh.ListHosts(kh.Dir)
+	lineToHosts := ssh.MatchConfigHostsToKnownHosts(kh.Dir, configHosts)
 	if isHTMX(r) {
-		view.KnownHostsTable(entries, configHosts).Render(r.Context(), w)
+		view.KnownHostsTable(entries, lineToHosts).Render(r.Context(), w)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)

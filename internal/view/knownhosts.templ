@@ -3,53 +3,10 @@ package view
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"github.com/holden/sshmasher/internal/model"
 )
 
-// Common hostnames to check
-var commonHosts = []string{"github.com", "bitbucket.org", "gitlab.com"}
-
-// matchKnownHostWithHostnames finds which hostnames (from config or common) match a known_hosts entry
-func matchKnownHostWithHostnames(entry model.KnownHostEntry, configHosts []model.HostEntry) []string {
-	var matches []string
-	
-	// Check against config hosts
-	for _, host := range configHosts {
-		target := host.HostName
-		if host.Port != "" && host.Port != "22" {
-			target = fmt.Sprintf("[%s]:%s", host.HostName, host.Port)
-		}
-		
-		// Check if the entry hosts contains this target
-		if strings.Contains(entry.Hosts, target) || 
-		   strings.Contains(target, entry.Hosts) ||
-		   entry.Hosts == host.HostName {
-			matches = append(matches, host.Alias)
-		}
-	}
-	
-	// Check against common hosts
-	for _, common := range commonHosts {
-		if strings.Contains(entry.Hosts, common) || entry.Hosts == common {
-			// Only add if not already in matches
-			found := false
-			for _, m := range matches {
-				if m == common {
-					found = true
-					break
-				}
-			}
-			if !found {
-				matches = append(matches, common)
-			}
-		}
-	}
-	
-	return matches
-}
-
-templ KnownHostsPage(entries []model.KnownHostEntry, configHosts []model.HostEntry) {
+templ KnownHostsPage(entries []model.KnownHostEntry, configHosts []model.HostEntry, lineToHosts map[int][]string) {
 	@Layout("Known Hosts", "/knownhosts") {
 		<hgroup>
 			<h2>Known Hosts</h2>
@@ -118,12 +75,12 @@ templ KnownHostsPage(entries []model.KnownHostEntry, configHosts []model.HostEnt
 			/>
 		</div>
 		<div id="knownhosts-content">
-			@KnownHostsTable(entries, configHosts)
+			@KnownHostsTable(entries, lineToHosts)
 		</div>
 	}
 }
 
-templ KnownHostsTable(entries []model.KnownHostEntry, configHosts []model.HostEntry) {
+templ KnownHostsTable(entries []model.KnownHostEntry, lineToHosts map[int][]string) {
 	if len(entries) == 0 {
 		@EmptyState("No known hosts entries found.")
 	} else {
@@ -141,7 +98,7 @@ templ KnownHostsTable(entries []model.KnownHostEntry, configHosts []model.HostEn
 				</thead>
 				<tbody id="knownhosts-tbody">
 					for _, entry := range entries {
-						@KnownHostRow(entry, configHosts)
+						@KnownHostRow(entry, lineToHosts)
 					}
 				</tbody>
 			</table>
@@ -149,17 +106,17 @@ templ KnownHostsTable(entries []model.KnownHostEntry, configHosts []model.HostEn
 	}
 }
 
-templ KnownHostRow(entry model.KnownHostEntry, configHosts []model.HostEntry) {
+templ KnownHostRow(entry model.KnownHostEntry, lineToHosts map[int][]string) {
 	<tr id={ fmt.Sprintf("kh-%d", entry.Line) }>
 		<td>{ strconv.Itoa(entry.Line) }</td>
 		<td>
-			{{ matches := matchKnownHostWithHostnames(entry, configHosts) }}
-			if len(matches) > 0 {
-				for i, match := range matches {
+			{{ hosts := lineToHosts[entry.Line] }}
+			if len(hosts) > 0 {
+				for i, host := range hosts {
 					if i > 0 {
 						<span>, </span>
 					}
-					<span class="hostname-tag">{ match }</span>
+					<span class="hostname-tag">{ host }</span>
 				}
 			} else {
 				<em>-</em>

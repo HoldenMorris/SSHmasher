@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -290,9 +291,14 @@ func OpenTerminal(alias string) error {
 			cmd = exec.Command(term, "-e", "bash", "-c", "ssh "+alias+" || exec bash")
 		}
 		
+		// For terminator, capture stderr to see errors
+		var stderr bytes.Buffer
+		if term == "terminator" {
+			cmd.Stderr = &stderr
+		}
+		
 		// Disown process so it doesn't die when the request ends
 		cmd.Stdout = nil
-		cmd.Stderr = nil
 		cmd.Stdin = nil
 		
 		// Ensure DISPLAY is set for GUI apps
@@ -308,14 +314,16 @@ func OpenTerminal(alias string) error {
 			return fmt.Errorf("failed to start terminal: %v", err)
 		}
 		
-		// Give it a moment to fail (if it's going to)
-		// Don't wait for it to complete since terminals run until closed
+		// Wait in background to log exit and capture any errors
 		go func() {
 			state, err := cmd.Process.Wait()
 			if err != nil {
 				log.Printf("[DEBUG] Terminal process wait error: %v", err)
 			} else {
 				log.Printf("[DEBUG] Terminal process exited with code: %d", state.ExitCode())
+				if term == "terminator" {
+					log.Printf("[DEBUG] Terminator stderr: %s", stderr.String())
+				}
 			}
 		}()
 		

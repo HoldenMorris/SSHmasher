@@ -281,9 +281,9 @@ func OpenTerminal(alias string) error {
 		case "konsole":
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		case "terminator":
-			// Terminator uses -x flag with sh -c to execute shell commands
-			// Pass sh, -c, and the command string as separate arguments
-			cmd = exec.Command(term, "-x", "sh", "-c", "ssh "+alias+"; exec bash")
+			// Terminator -x expects: terminator -x command [args...]
+			// Simple approach that works: terminator -x ssh alias
+			cmd = exec.Command(term, "-x", "ssh", alias)
 		case "xterm", "alacritty", "kitty":
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		default:

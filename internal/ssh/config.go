@@ -255,6 +255,10 @@ func OpenTerminal(alias string) error {
 		log.Printf("[DEBUG] macOS detected, using 'open -a Terminal'")
 		// macOS: Use 'open -a Terminal' to open the default Terminal.app
 		cmd := exec.Command("open", "-a", "Terminal", "--args", "ssh", alias)
+		// Disown process so it doesn't die when the request ends
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		cmd.Stdin = nil
 		log.Printf("[DEBUG] Executing: %s", cmd.String())
 		return cmd.Start()
 
@@ -275,14 +279,26 @@ func OpenTerminal(alias string) error {
 			cmd = exec.Command(term, "--", "ssh", alias)
 		case "konsole":
 			cmd = exec.Command(term, "-e", "ssh", alias)
-		case "xterm", "alacritty", "kitty", "terminator":
+		case "terminator":
+			// Use bash -c to keep window open on error: "ssh alias || exec bash"
+			cmd = exec.Command(term, "-e", "bash", "-c", "ssh "+alias+" || exec bash")
+		case "xterm", "alacritty", "kitty":
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		default:
-			// Fallback: try with -e flag
-			cmd = exec.Command(term, "-e", "ssh", alias)
+			// Fallback: try with -e flag and keep window open on error
+			cmd = exec.Command(term, "-e", "bash", "-c", "ssh "+alias+" || exec bash")
 		}
 		
+		// Disown process so it doesn't die when the request ends
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		cmd.Stdin = nil
+		
+		// Ensure DISPLAY is set for GUI apps
+		cmd.Env = append(os.Environ(), "DISPLAY=:0")
+		
 		log.Printf("[DEBUG] Executing: %s", cmd.String())
+		log.Printf("[DEBUG] With DISPLAY=:0")
 		return cmd.Start()
 
 	case "windows":
@@ -291,11 +307,17 @@ func OpenTerminal(alias string) error {
 		if _, err := exec.LookPath("wt"); err == nil {
 			log.Printf("[DEBUG] Using Windows Terminal (wt)")
 			cmd := exec.Command("wt", "ssh", alias)
+			cmd.Stdout = nil
+			cmd.Stderr = nil
+			cmd.Stdin = nil
 			return cmd.Start()
 		}
 		// Use 'start' to open the default terminal handler
 		log.Printf("[DEBUG] Using cmd /c start")
 		cmd := exec.Command("cmd", "/c", "start", "ssh", alias)
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		cmd.Stdin = nil
 		return cmd.Start()
 
 	default:

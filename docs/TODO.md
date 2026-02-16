@@ -34,6 +34,7 @@
 - [x] Lookup config hostsname:port in known_hosts to display in the known hosts table
 - [x] Lookup common hostname like github.com and bitbucket.org in the same way
 - [x] Add hosts to known_hosts using ssh-keyscan (with quick buttons for GitHub/Bitbucket)
+- [x] Add hostname column to known_hosts table with config host matching
 - [ ] Key passphrase change (ssh-keygen -p)
 - [ ] Confirmation dialog component (replace browser `confirm()` with styled modal)
 - [x] Config host duplicate detection before add

@@ -282,8 +282,9 @@ func OpenTerminal(alias string) error {
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		case "terminator":
 			// Terminator -x expects: terminator -x command [args...]
-			// Simple approach that works: terminator -x ssh alias
-			cmd = exec.Command(term, "-x", "ssh", alias)
+			// Use -u flag to force unique instance (don't try to attach to existing)
+			// Simple approach that works: terminator -u -x ssh alias
+			cmd = exec.Command(term, "-u", "-x", "ssh", alias)
 		case "xterm", "alacritty", "kitty":
 			cmd = exec.Command(term, "-e", "ssh", alias)
 		default:
@@ -301,8 +302,14 @@ func OpenTerminal(alias string) error {
 		cmd.Stdout = nil
 		cmd.Stdin = nil
 		
-		// Ensure DISPLAY is set for GUI apps
-		cmd.Env = append(os.Environ(), "DISPLAY=:0")
+		// Pass full environment from parent process - critical for GUI apps
+		// This includes XAUTHORITY, DBUS_SESSION_BUS_ADDRESS, etc.
+		cmd.Env = os.Environ()
+		
+		// Ensure DISPLAY is set
+		if os.Getenv("DISPLAY") == "" {
+			cmd.Env = append(cmd.Env, "DISPLAY=:0")
+		}
 		
 		log.Printf("[DEBUG] Executing: %s", cmd.String())
 		log.Printf("[DEBUG] With DISPLAY=:0")

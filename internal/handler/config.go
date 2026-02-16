@@ -184,3 +184,40 @@ func (c *Config) PutRaw(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (c *Config) OpenTerminal(w http.ResponseWriter, r *http.Request) {
+	alias := r.PathValue("alias")
+
+	if alias == "" {
+		http.Error(w, "alias required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate the alias to prevent command injection
+	for _, char := range alias {
+		if !isValidAliasChar(char) {
+			http.Error(w, "invalid alias", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := ssh.OpenTerminal(alias); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return success - HTMX will show this in a toast or alert
+	if isHTMX(r) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Terminal opened for " + alias))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func isValidAliasChar(char rune) bool {
+	return (char >= 'a' && char <= 'z') ||
+		(char >= 'A' && char <= 'Z') ||
+		(char >= '0' && char <= '9') ||
+		char == '-' || char == '_' || char == '.'
+}

@@ -41,6 +41,7 @@ templ ConfigPage(hosts []model.HostEntry, keys []model.SSHKey, dir *ssh.SSHDir) 
 				hx-trigger="input changed delay:300ms, search"
 			/>
 		</div>
+		<div id="terminal-message" class="alert" style="display: none;"></div>
 		<div id="config-content">
 			@ConfigHostsTable(hosts, keys, dir)
 		</div>
@@ -90,6 +91,16 @@ templ ConfigHostRow(host model.HostEntry, keys []model.SSHKey, dir *ssh.SSHDir) 
 			}
 		</td>
 		<td>
+			<button
+				hx-post={ fmt.Sprintf("/api/config/hosts/%s/terminal", host.Alias) }
+				hx-target="#terminal-message"
+				hx-swap="innerHTML"
+				class="outline"
+				aria-label="Open in terminal"
+				title="Open in terminal"
+			>
+				<i class="fa-solid fa-terminal" aria-hidden="true"></i>
+			</button>
 			<button
 				hx-get={ fmt.Sprintf("/api/knownhosts/lookup?hostname=%s&port=%s", host.HostName, host.Port) }
 				hx-target={ "#knownhost-lookup-result-" + host.Alias }

@@ -49,6 +49,7 @@ func NewRouter(dir *ssh.SSHDir, staticFS fs.FS) *http.ServeMux {
 	mux.HandleFunc("GET /api/config/hosts/{alias}", config.GetHost)
 	mux.HandleFunc("PUT /api/config/hosts/{alias}", config.UpdateHost)
 	mux.HandleFunc("DELETE /api/config/hosts/{alias}", config.DeleteHost)
+	mux.HandleFunc("POST /api/config/hosts/{alias}/terminal", config.OpenTerminal)
 	mux.HandleFunc("GET /api/config/raw", config.GetRaw)
 	mux.HandleFunc("PUT /api/config/raw", config.PutRaw)
 

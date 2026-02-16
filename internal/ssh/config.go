@@ -3,7 +3,9 @@ package ssh
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/holden/sshmasher/internal/model"
@@ -231,4 +233,64 @@ func (d *SSHDir) IsKeyFile(identityFile string) bool {
 		return true
 	}
 	return false
+}
+
+// OpenTerminal opens a terminal and runs SSH to connect to the given host.
+// It opens the default terminal for the current OS.
+func OpenTerminal(alias string) error {
+	// Validate the alias to prevent command injection
+	// Only allow alphanumeric, hyphen, underscore, and dot
+	for _, char := range alias {
+		if !isValidAliasChar(char) {
+			return fmt.Errorf("invalid alias: contains forbidden characters")
+		}
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS: Uses AppleScript to tell Terminal to run the command
+		script := fmt.Sprintf("tell application \"Terminal\" to do script \"ssh %s\"", alias)
+		cmd := exec.Command("osascript", "-e", script)
+		return cmd.Start()
+
+	case "linux":
+		// Try common Linux terminals
+		terminals := []string{"gnome-terminal", "konsole", "xfce4-terminal", "xterm", "alacritty", "kitty"}
+		for _, term := range terminals {
+			if _, err := exec.LookPath(term); err == nil {
+				var cmd *exec.Cmd
+				switch term {
+				case "gnome-terminal", "xfce4-terminal":
+					cmd = exec.Command(term, "--", "ssh", alias)
+				case "konsole":
+					cmd = exec.Command(term, "-e", "ssh", alias)
+				case "xterm", "alacritty", "kitty":
+					cmd = exec.Command(term, "-e", "ssh", alias)
+				default:
+					cmd = exec.Command(term, "-e", "ssh", alias)
+				}
+				return cmd.Start()
+			}
+		}
+		return fmt.Errorf("no supported terminal emulator found")
+
+	case "windows":
+		// Windows: Try Windows Terminal first, then cmd
+		if _, err := exec.LookPath("wt"); err == nil {
+			cmd := exec.Command("wt", "ssh", alias)
+			return cmd.Start()
+		}
+		cmd := exec.Command("cmd", "/c", "start", "ssh", alias)
+		return cmd.Start()
+
+	default:
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+}
+
+func isValidAliasChar(char rune) bool {
+	return (char >= 'a' && char <= 'z') ||
+		(char >= 'A' && char <= 'Z') ||
+		(char >= '0' && char <= '9') ||
+		char == '-' || char == '_' || char == '.'
 }

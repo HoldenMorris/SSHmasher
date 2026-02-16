@@ -300,7 +300,27 @@ func OpenTerminal(alias string) error {
 		
 		log.Printf("[DEBUG] Executing: %s", cmd.String())
 		log.Printf("[DEBUG] With DISPLAY=:0")
-		return cmd.Start()
+		
+		// Start the command
+		err := cmd.Start()
+		if err != nil {
+			log.Printf("[DEBUG] Failed to start terminal: %v", err)
+			return fmt.Errorf("failed to start terminal: %v", err)
+		}
+		
+		// Give it a moment to fail (if it's going to)
+		// Don't wait for it to complete since terminals run until closed
+		go func() {
+			state, err := cmd.Process.Wait()
+			if err != nil {
+				log.Printf("[DEBUG] Terminal process wait error: %v", err)
+			} else {
+				log.Printf("[DEBUG] Terminal process exited with code: %d", state.ExitCode())
+			}
+		}()
+		
+		log.Printf("[DEBUG] Terminal process started with PID: %d", cmd.Process.Pid)
+		return nil
 
 	case "windows":
 		log.Printf("[DEBUG] Windows detected")

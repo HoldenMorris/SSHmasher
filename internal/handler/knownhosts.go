@@ -87,3 +87,25 @@ func (kh *KnownHosts) PutRaw(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (kh *KnownHosts) Lookup(w http.ResponseWriter, r *http.Request) {
+	hostname := r.URL.Query().Get("hostname")
+	port := r.URL.Query().Get("port")
+	
+	if hostname == "" {
+		http.Error(w, "hostname required", http.StatusBadRequest)
+		return
+	}
+	
+	entries, err := ssh.LookupKnownHost(kh.Dir, hostname, port)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	if isHTMX(r) {
+		view.KnownHostLookupResults(hostname, port, entries).Render(r.Context(), w)
+		return
+	}
+	writeJSON(w, entries)
+}

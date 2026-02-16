@@ -31,10 +31,8 @@
 - [x] Show key file sizes in table
 - [x] Show key modification dates (n months ago) in table
 - [x] Backup download via browser (Content-Disposition header)
-- [ ] Lookup config hostsname:port in known_hosts to diaplay in the known hosts table e.g.   ssh-keygen -F "[sta-securemail-pl-www1.synaq.com]:50022" shows ```# Host [sta-securemail-pl-www1.synaq.com]:50022 found: line 2
-|1|vGWEBG0Tr73LLXn3RdPNwKP6qwM=|F/ckrdoJu5W7Mk8FMqc0Wa2qRkU= ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEApGiVep7IeEzt3TCm5jveTdD6lYI4sAlwk1LDxd6ZKw7cW7Rp88ct8fVaDJIgQ6MiLEdnEff/VgHJHLpcy1lOCY8DsEx8iY69iNtLyrJmrLkhgt9VhZHfdebhEIKY2qehqVnq2sJ/RbovaJU/SR6oPZu9FoJk4Ot/qV96BsdH3EeLH31r/nomKn3EH4ce66G1dujGh9SvLZmcEwmd8LzyObjKw89Hqvw58+DXKBFXuHXFNWL5TLUNBraSThZgNWRRst3ti5HIN62ByZ4eq0vW9XDR7GLGBNggNOmUOP5cFb+yxFVt16B3ReV08Fj5/oIsRJlBrtP1h7XjihLBPQ0/FQ==
-```
-- [ ] lookup common hostname like github.com and bitbucket.org in the same way
+- [x] Lookup config hostsname:port in known_hosts to display in the known hosts table
+- [x] Lookup common hostname like github.com and bitbucket.org in the same way
 - [ ] Key passphrase change (ssh-keygen -p)
 - [ ] Confirmation dialog component (replace browser `confirm()` with styled modal)
 - [x] Config host duplicate detection before add

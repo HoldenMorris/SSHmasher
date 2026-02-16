@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/holden/sshmasher/internal/model"
@@ -74,6 +75,45 @@ func WriteKnownHosts(dir *SSHDir, content string) error {
 		return err
 	}
 	return os.WriteFile(dir.KnownHostsPath(), []byte(content), 0644)
+}
+
+// LookupKnownHost searches for a hostname in known_hosts using ssh-keygen -F.
+// Returns the matching entries or nil if not found.
+func LookupKnownHost(dir *SSHDir, hostname string, port string) ([]model.KnownHostEntry, error) {
+	// Build the host:port string if port is provided
+	target := hostname
+	if port != "" && port != "22" {
+		target = fmt.Sprintf("[%s]:%s", hostname, port)
+	}
+
+	// Use ssh-keygen -F to lookup the host
+	cmd := exec.Command("ssh-keygen", "-F", target, "-f", dir.KnownHostsPath())
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// ssh-keygen returns exit code 1 if host not found, which is not an error for us
+		if strings.Contains(string(output), "not found") {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("ssh-keygen -F failed: %s: %w", string(output), err)
+	}
+
+	// Parse the output
+	var entries []model.KnownHostEntry
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// Parse the entry
+		entry := parseKnownHostLine(0, line)
+		if entry.Hosts != "" && entry.KeyType != "" {
+			entries = append(entries, entry)
+		}
+	}
+
+	return entries, nil
 }
 
 func parseKnownHostLine(lineNum int, line string) model.KnownHostEntry {

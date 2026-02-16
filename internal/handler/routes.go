@@ -54,6 +54,7 @@ func NewRouter(dir *ssh.SSHDir, staticFS fs.FS) *http.ServeMux {
 
 	// API: Known Hosts
 	mux.HandleFunc("GET /api/knownhosts", knownhosts.List)
+	mux.HandleFunc("GET /api/knownhosts/lookup", knownhosts.Lookup)
 	mux.HandleFunc("DELETE /api/knownhosts/{line}", knownhosts.Delete)
 	mux.HandleFunc("GET /api/knownhosts/raw", knownhosts.GetRaw)
 	mux.HandleFunc("PUT /api/knownhosts/raw", knownhosts.PutRaw)

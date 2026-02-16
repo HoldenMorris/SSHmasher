@@ -99,3 +99,45 @@ templ KnownHostsRawEditor(content string) {
 		<button type="submit">Save</button>
 	</form>
 }
+
+templ KnownHostLookupResults(hostname string, port string, entries []model.KnownHostEntry) {
+	<article>
+		<header>
+			<h4>
+				if port != "" {
+					Lookup: { hostname }:{ port }
+				} else {
+					Lookup: { hostname }
+				}
+			</h4>
+		</header>
+		if len(entries) == 0 {
+			<p><em>No matching entries found in known_hosts.</em></p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>Host(s)</th>
+						<th>Key Type</th>
+						<th>Fingerprint</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, entry := range entries {
+						<tr>
+							<td>
+								if entry.IsHashed {
+									<em>(hashed)</em>
+								} else {
+									{ entry.Hosts }
+								}
+							</td>
+							<td>{ entry.KeyType }</td>
+							<td><code class="fingerprint">{ entry.Fingerprint }</code></td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</article>
+}

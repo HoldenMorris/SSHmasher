@@ -81,8 +81,9 @@ templ KnownHostRow(entry model.KnownHostEntry) {
 				hx-target="#knownhosts-content"
 				hx-swap="innerHTML"
 				class="outline secondary"
+				aria-label="Remove"
 			>
-				Remove
+				<i class="fa-solid fa-trash" aria-hidden="true"></i>
 			</button>
 		</td>
 	</tr>

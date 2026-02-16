@@ -5,24 +5,65 @@ import (
 	"github.com/holden/sshmasher/internal/model"
 )
 
-templ KeysPage(keys []model.SSHKey) {
+func formatFileSize(bytes int64) string {
+	if bytes == 0 {
+		return "-"
+	}
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+templ KeysPage(keys []model.SSHKey, refCount map[string]int) {
 	@Layout("Keys", "/keys") {
 		<hgroup>
 			<h2>SSH Keys</h2>
 			<p>Manage your SSH key pairs</p>
 		</hgroup>
-		<div id="key-generate">
-			@KeyGenerateForm()
+		<div class="grid">
+			<div>
+				<button
+					hx-get="/api/keys/new"
+					hx-target="#key-modal-content"
+					hx-swap="innerHTML"
+					hx-on::after-request="if(event.detail.successful) document.getElementById('key-modal').showModal()"
+				>
+					<i class="fa-solid fa-plus" aria-hidden="true"></i> Generate New Key
+				</button>
+			</div>
+		</div>
+		<div>
+			<input
+				type="search"
+				name="search"
+				placeholder="Filter by name, type, or comment..."
+				hx-get="/api/keys"
+				hx-target="#keys-table"
+				hx-swap="innerHTML"
+				hx-trigger="input changed delay:300ms, search"
+				hx-indicator="#keys-loading"
+			/>
+			<span id="keys-loading" class="htmx-indicator" aria-busy="true">Loading...</span>
 		</div>
 		<div id="keys-table">
-			@KeysTable(keys)
+			@KeysTable(keys, refCount)
 		</div>
+		<dialog id="key-modal">
+			<div id="key-modal-content"></div>
+		</dialog>
 	}
 }
 
-templ KeysTable(keys []model.SSHKey) {
+templ KeysTable(keys []model.SSHKey, refCount map[string]int) {
 	if len(keys) == 0 {
-		@EmptyState("No SSH keys found. Generate one below.")
+		@EmptyState("No SSH keys found. Click 'Generate New Key' to create one.")
 	} else {
 		<figure>
 			<table>
@@ -30,13 +71,15 @@ templ KeysTable(keys []model.SSHKey) {
 					<tr>
 						<th>Name</th>
 						<th>Type</th>
-						<th>Fingerprint</th>
+						<th>Comment</th>
+						<th>Size</th>
+						<th>Configs</th>
 						<th>Actions</th>
 					</tr>
 				</thead>
 				<tbody id="keys-tbody">
 					for _, key := range keys {
-						@KeyRow(key)
+						@KeyRow(key, refCount)
 					}
 				</tbody>
 			</table>
@@ -44,42 +87,52 @@ templ KeysTable(keys []model.SSHKey) {
 	}
 }
 
-templ KeyRow(key model.SSHKey) {
+templ KeyRow(key model.SSHKey, refCount map[string]int) {
 	<tr id={ "key-" + key.Name }>
 		<td>
-			<a
-				href={ templ.SafeURL(fmt.Sprintf("/api/keys/%s", key.Name)) }
-				hx-get={ fmt.Sprintf("/api/keys/%s", key.Name) }
-				hx-target="#key-detail"
-				hx-swap="innerHTML"
-			>
-				{ key.Name }
-			</a>
+			{ key.Name }
 		</td>
 		<td>{ key.Type }</td>
-		<td><code class="fingerprint">{ key.Fingerprint }</code></td>
+		<td>{ key.Comment }</td>
+		<td>{ formatFileSize(key.Size) }</td>
 		<td>
+			{ fmt.Sprintf("%d", refCount[key.Name]) }
+		</td>
+		<td>
+			<button
+				hx-get={ fmt.Sprintf("/api/keys/%s", key.Name) }
+				hx-target="#key-modal-content"
+				hx-swap="innerHTML"
+				hx-on::after-request="if(event.detail.successful) document.getElementById('key-modal').showModal()"
+				class="outline"
+				aria-label="View"
+			>
+				<i class="fa-solid fa-eye" aria-hidden="true"></i>
+			</button>
 			<button
 				hx-delete={ fmt.Sprintf("/api/keys/%s", key.Name) }
 				hx-confirm={ fmt.Sprintf("Delete key '%s'? This cannot be undone.", key.Name) }
 				hx-target="#keys-table"
 				hx-swap="innerHTML"
 				class="outline secondary"
+				aria-label="Delete"
 			>
-				Delete
+				<i class="fa-solid fa-trash" aria-hidden="true"></i>
 			</button>
 		</td>
 	</tr>
 }
 
 templ KeyGenerateForm() {
-	<details>
-		<summary role="button" class="outline">Generate New Key</summary>
+	<article>
+		<header>
+			<h3>Generate New Key</h3>
+		</header>
 		<form
 			hx-post="/api/keys"
 			hx-target="#keys-table"
 			hx-swap="innerHTML"
-			hx-on::after-request="if(event.detail.successful) this.reset()"
+			hx-on::after-request="if(event.detail.successful) { document.getElementById('key-modal').close(); }"
 		>
 			<div class="grid">
 				<label>
@@ -116,10 +169,12 @@ templ KeyGenerateForm() {
 				Passphrase (optional)
 				<input type="password" name="passphrase" placeholder="Leave empty for no passphrase"/>
 			</label>
-			<button type="submit">Generate Key</button>
+			<footer>
+				<button type="submit">Generate Key</button>
+				<button type="button" class="outline secondary" onclick="document.getElementById('key-modal').close()">Cancel</button>
+			</footer>
 		</form>
-	</details>
-	<div id="key-detail"></div>
+	</article>
 }
 
 templ KeyDetail(key model.SSHKey) {
@@ -132,8 +187,25 @@ templ KeyDetail(key model.SSHKey) {
 			<dd>{ key.Type }</dd>
 			<dt>Fingerprint</dt>
 			<dd><code class="fingerprint">{ key.Fingerprint }</code></dd>
-			<dt>Comment</dt>
-			<dd>{ key.Comment }</dd>
+			if key.HasPrivate {
+				<form
+					hx-put={ fmt.Sprintf("/api/keys/%s", key.Name) }
+					hx-target="#keys-table"
+					hx-swap="innerHTML"
+					hx-on::after-request="if(event.detail.successful) document.getElementById('key-modal').close()"
+				>
+					<dt>Comment</dt>
+					<dd>
+						<div class="grid">
+							<input type="text" name="comment" value={ key.Comment } required/>
+							<button type="submit">Update</button>
+						</div>
+					</dd>
+				</form>
+			} else {
+				<dt>Comment</dt>
+				<dd>{ key.Comment }</dd>
+			}
 			<dt>Has Private Key</dt>
 			<dd>
 				if key.HasPrivate {
@@ -145,7 +217,21 @@ templ KeyDetail(key model.SSHKey) {
 		</dl>
 		<details>
 			<summary>Public Key</summary>
-			<pre><code>{ key.PublicKey }</code></pre>
+			<div class="grid">
+				<pre><code class="public-key">{ key.PublicKey }</code></pre>
+				<button
+					type="button"
+					class="outline"
+					aria-label="Copy to clipboard"
+					data-public-key={ key.PublicKey }
+					onclick="copyPublicKey(this)"
+				>
+					<i class="fa-regular fa-copy" aria-hidden="true"></i>
+				</button>
+			</div>
 		</details>
+		<footer>
+			<button type="button" class="outline secondary" onclick="document.getElementById('key-modal').close()">Close</button>
+		</footer>
 	</article>
 }

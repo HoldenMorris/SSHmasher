@@ -3,25 +3,35 @@
 ## Current Sprint
 
 - [ ] Add handler tests for API endpoints
-- [ ] Add loading indicators (`hx-indicator`) on all HTMX actions
-- [ ] Empty state improvements (icons, call-to-action buttons)
-- [ ] Error toast messages instead of plain text errors
-- [ ] Search/filter on keys table
+- [x] Add loading indicators (`hx-indicator`) on all HTMX actions
+- [x] Empty state improvements (icons, call-to-action buttons)
+- [x] Search/filter on keys table
+- [x] Search/filter on config table
+- [x] Search/filter on known hosts table (already existed)
 
 ## Bugs
 
-- [ ] Wails webview doesn't follow HTTP redirects — root `/` renders keys page directly as workaround
-- [ ] Config update (`replaceHostBlock`) may misbehave with multi-pattern `Host` lines (e.g. `Host foo bar`)
-- [ ] Known hosts line numbers shift after deletion — UI should refresh full table (currently does)
+- [x] Wails webview doesn't follow HTTP redirects — root `/` renders keys page directly as workaround
+- [x] Config update (`replaceHostBlock`) may misbehave with multi-pattern `Host` lines (e.g. `Host foo bar`)
+- [x] Make action buttons icons because the words "edit,delete etc" are text wrapping.
+- [x] Config table does not shoe 'Identity File' in the table
+- [x] The div.grid under the hgroup need some bottom margin
+- [x] Known hosts line numbers shift after deletion — UI should refresh full table (currently does)
+- [x] Add/Edit host forms should be modal boxes instead of inline expand/collapse
+- [x] Generate new key should use a modal instead of inline expand/collapse
+- [x] Add column to keys table showing config references
+- [x] Show red color on config row if it references a broken key
+
 
 ## Short Term
 
-- [ ] Dark mode toggle (Pico CSS supports `data-theme="dark"`)
-- [ ] Copy public key to clipboard button
+- [x] Add a col in the keys table to indicate how many configs refrence it as an Identitiy file.
+- [x] Copy public key to clipboard button
 - [ ] Key passphrase change (ssh-keygen -p)
-- [ ] Show key file sizes and modification dates in table
+- [x] Key comment edit
+- [x] Show key file sizes and modification dates in table
 - [ ] Confirmation dialog component (replace browser `confirm()` with styled modal)
-- [ ] Config host duplicate detection before add
+- [x] Config host duplicate detection before add
 - [ ] Backup auto-cleanup (keep last N backups option)
 - [ ] Backup download via browser (Content-Disposition header)
 

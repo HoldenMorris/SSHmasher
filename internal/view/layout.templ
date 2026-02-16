@@ -9,6 +9,7 @@ templ Layout(title string, currentPath string) {
 			<title>{ title } - SSHmasher</title>
 			<link rel="stylesheet" href="/static/css/pico.min.css"/>
 			<link rel="stylesheet" href="/static/css/app.css"/>
+			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 			<script src="/static/js/htmx.min.js"></script>
 		</head>
 		<body>
@@ -38,6 +39,11 @@ templ Layout(title string, currentPath string) {
 								aria-current="page"
 							}>Backup</a>
 						</li>
+						<li>
+							<button class="outline" id="theme-toggle" aria-label="Toggle theme" onclick="toggleTheme()">
+								<i class="fa-solid fa-moon" id="theme-icon"></i>
+							</button>
+						</li>
 					</ul>
 				</nav>
 			</header>
@@ -49,6 +55,13 @@ templ Layout(title string, currentPath string) {
 				<small>SSHmasher — SSH key and config manager</small>
 			</footer>
 			<script src="/static/js/app.js"></script>
+			<script>
+				// Apply saved theme on load
+				(function() {
+					const saved = localStorage.getItem('theme') || 'auto';
+					applyTheme(saved);
+				})();
+			</script>
 		</body>
 	</html>
 }

@@ -12,6 +12,7 @@ type SSHKey struct {
 	Comment     string    `json:"comment"`
 	HasPrivate  bool      `json:"hasPrivate"`
 	ModTime     time.Time `json:"modTime"`
+	Size        int64     `json:"size"` // size in bytes
 }
 
 // KeyGenRequest holds parameters for generating a new SSH key.

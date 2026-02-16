@@ -3,6 +3,7 @@ package ssh
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/holden/sshmasher/internal/model"
@@ -152,6 +153,7 @@ func formatHostBlock(host model.HostEntry) string {
 
 // replaceHostBlock finds the "Host <alias>" block in content and replaces it with replacement.
 // If replacement is empty, the block is removed.
+// Handles multi-pattern Host lines like "Host foo bar" by checking if alias matches any pattern.
 func replaceHostBlock(content, alias, replacement string) string {
 	lines := strings.Split(content, "\n")
 	var result []string
@@ -161,17 +163,25 @@ func replaceHostBlock(content, alias, replacement string) string {
 		trimmed := strings.TrimSpace(line)
 
 		if strings.HasPrefix(trimmed, "Host ") {
-			blockAlias := strings.TrimSpace(strings.TrimPrefix(trimmed, "Host "))
-			if blockAlias == alias {
+			blockPatterns := strings.TrimSpace(strings.TrimPrefix(trimmed, "Host "))
+			patterns := strings.Fields(blockPatterns)
+			aliasMatched := false
+			for _, p := range patterns {
+				if p == alias {
+					aliasMatched = true
+					break
+				}
+			}
+
+			if aliasMatched {
 				inBlock = true
 				continue
 			} else if inBlock {
-				// We hit a new Host block, so the old one is done
 				inBlock = false
 				if replacement != "" {
 					result = append(result, strings.TrimSpace(replacement))
 					result = append(result, "")
-					replacement = "" // only add once
+					replacement = ""
 				}
 			}
 		} else if inBlock && strings.HasPrefix(trimmed, "Host ") {
@@ -179,17 +189,46 @@ func replaceHostBlock(content, alias, replacement string) string {
 		}
 
 		if inBlock {
-			// Skip lines belonging to the old block
 			continue
 		}
 
 		result = append(result, line)
 	}
 
-	// If block was at the end of file
 	if inBlock && replacement != "" {
 		result = append(result, strings.TrimSpace(replacement))
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// KeyRefCount returns a map of key names to the number of config entries that reference them.
+func KeyRefCount(dir *SSHDir) (map[string]int, error) {
+	hosts, err := ListHosts(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	refCount := make(map[string]int)
+	for _, host := range hosts {
+		if host.IdentityFile != "" {
+			refCount[host.IdentityFile]++
+		}
+	}
+	return refCount, nil
+}
+
+// IsKeyFile checks if a key file (or its .pub variant) exists in the SSH directory.
+// The identityFile parameter can be a full path or just a name like "id_ed25519".
+func (d *SSHDir) IsKeyFile(identityFile string) bool {
+	// Check as-is (full path or relative path)
+	if _, err := os.Stat(d.Path(identityFile)); err == nil {
+		return true
+	}
+	// Check just the filename in ~/.ssh
+	name := filepath.Base(identityFile)
+	if _, err := os.Stat(d.Path(name)); err == nil {
+		return true
+	}
+	return false
 }

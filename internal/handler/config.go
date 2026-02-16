@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/holden/sshmasher/internal/model"
 	"github.com/holden/sshmasher/internal/ssh"
@@ -20,11 +22,43 @@ func (c *Config) ListHosts(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		hosts = nil
 	}
+	keys, err := ssh.ListKeys(c.Dir)
+	if err != nil {
+		keys = nil
+	}
+
+	search := r.URL.Query().Get("search")
+	if search != "" {
+		var filtered []model.HostEntry
+		searchLower := strings.ToLower(search)
+		for _, host := range hosts {
+			if strings.Contains(strings.ToLower(host.Alias), searchLower) ||
+				strings.Contains(strings.ToLower(host.HostName), searchLower) ||
+				strings.Contains(strings.ToLower(host.User), searchLower) ||
+				strings.Contains(strings.ToLower(host.IdentityFile), searchLower) {
+				filtered = append(filtered, host)
+			}
+		}
+		hosts = filtered
+	}
+
 	if isHTMX(r) {
-		view.ConfigHostsTable(hosts).Render(r.Context(), w)
+		view.ConfigHostsTable(hosts, keys, c.Dir).Render(r.Context(), w)
 		return
 	}
 	writeJSON(w, hosts)
+}
+
+func (c *Config) NewHost(w http.ResponseWriter, r *http.Request) {
+	keys, err := ssh.ListKeys(c.Dir)
+	if err != nil {
+		keys = nil
+	}
+	if isHTMX(r) {
+		view.ConfigAddForm(keys).Render(r.Context(), w)
+		return
+	}
+	writeJSON(w, nil)
 }
 
 func (c *Config) GetHost(w http.ResponseWriter, r *http.Request) {
@@ -34,8 +68,12 @@ func (c *Config) GetHost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+	keys, err := ssh.ListKeys(c.Dir)
+	if err != nil {
+		keys = nil
+	}
 	if isHTMX(r) {
-		view.ConfigEditForm(*host).Render(r.Context(), w)
+		view.ConfigEditForm(*host, keys).Render(r.Context(), w)
 		return
 	}
 	writeJSON(w, host)
@@ -47,17 +85,27 @@ func (c *Config) AddHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	alias := r.FormValue("alias")
+	hostName := r.FormValue("hostname")
+
+	if alias == "" || hostName == "" {
+		http.Error(w, "alias and hostname are required", http.StatusBadRequest)
+		return
+	}
+
+	// Check for duplicate
+	existing, err := ssh.GetHost(c.Dir, alias)
+	if err == nil && existing != nil {
+		http.Error(w, fmt.Sprintf("host '%s' already exists", alias), http.StatusConflict)
+		return
+	}
+
 	host := model.HostEntry{
-		Alias:        r.FormValue("alias"),
-		HostName:     r.FormValue("hostname"),
+		Alias:        alias,
+		HostName:     hostName,
 		User:         r.FormValue("user"),
 		Port:         r.FormValue("port"),
 		IdentityFile: r.FormValue("identityfile"),
-	}
-
-	if host.Alias == "" || host.HostName == "" {
-		http.Error(w, "alias and hostname are required", http.StatusBadRequest)
-		return
 	}
 
 	if err := ssh.AddHost(c.Dir, host); err != nil {
@@ -130,7 +178,8 @@ func (c *Config) PutRaw(w http.ResponseWriter, r *http.Request) {
 
 	if isHTMX(r) {
 		hosts, _ := ssh.ListHosts(c.Dir)
-		view.ConfigHostsTable(hosts).Render(r.Context(), w)
+		keys, _ := ssh.ListKeys(c.Dir)
+		view.ConfigHostsTable(hosts, keys, c.Dir).Render(r.Context(), w)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

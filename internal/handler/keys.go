@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/holden/sshmasher/internal/model"
 	"github.com/holden/sshmasher/internal/ssh"
@@ -21,11 +22,39 @@ func (k *Keys) List(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	refCount, err := ssh.KeyRefCount(k.Dir)
+	if err != nil {
+		refCount = make(map[string]int)
+	}
+
+	search := r.URL.Query().Get("search")
+	if search != "" {
+		var filtered []model.SSHKey
+		searchLower := strings.ToLower(search)
+		for _, key := range keys {
+			if strings.Contains(strings.ToLower(key.Name), searchLower) ||
+				strings.Contains(strings.ToLower(key.Type), searchLower) ||
+				strings.Contains(strings.ToLower(key.Comment), searchLower) ||
+				strings.Contains(strings.ToLower(key.Fingerprint), searchLower) {
+				filtered = append(filtered, key)
+			}
+		}
+		keys = filtered
+	}
+
 	if isHTMX(r) {
-		view.KeysTable(keys).Render(r.Context(), w)
+		view.KeysTable(keys, refCount).Render(r.Context(), w)
 		return
 	}
 	writeJSON(w, keys)
+}
+
+func (k *Keys) NewKey(w http.ResponseWriter, r *http.Request) {
+	if isHTMX(r) {
+		view.KeyGenerateForm().Render(r.Context(), w)
+		return
+	}
+	writeJSON(w, nil)
 }
 
 func (k *Keys) Get(w http.ResponseWriter, r *http.Request) {
@@ -73,8 +102,12 @@ func (k *Keys) Generate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	refCount, err := ssh.KeyRefCount(k.Dir)
+	if err != nil {
+		refCount = make(map[string]int)
+	}
 	if isHTMX(r) {
-		view.KeysTable(keys).Render(r.Context(), w)
+		view.KeysTable(keys, refCount).Render(r.Context(), w)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -93,8 +126,42 @@ func (k *Keys) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	refCount, err := ssh.KeyRefCount(k.Dir)
+	if err != nil {
+		refCount = make(map[string]int)
+	}
 	if isHTMX(r) {
-		view.KeysTable(keys).Render(r.Context(), w)
+		view.KeysTable(keys, refCount).Render(r.Context(), w)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (k *Keys) UpdateComment(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	newComment := r.FormValue("comment")
+
+	if err := ssh.UpdateKeyComment(k.Dir, name, newComment); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	keys, err := ssh.ListKeys(k.Dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	refCount, err := ssh.KeyRefCount(k.Dir)
+	if err != nil {
+		refCount = make(map[string]int)
+	}
+	if isHTMX(r) {
+		view.KeysTable(keys, refCount).Render(r.Context(), w)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

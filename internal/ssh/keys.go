@@ -110,6 +110,23 @@ func DeleteKey(dir *SSHDir, name string) error {
 	return nil
 }
 
+// UpdateKeyComment changes the comment on a key using ssh-keygen -c.
+func UpdateKeyComment(dir *SSHDir, name, newComment string) error {
+	keyPath := dir.Path(name)
+
+	if !fileExists(keyPath) {
+		return fmt.Errorf("key not found: %s", name)
+	}
+
+	cmd := exec.Command("ssh-keygen", "-c", "-f", keyPath, "-C", newComment)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ssh-keygen -c failed: %s: %w", string(output), err)
+	}
+
+	return nil
+}
+
 func parseKeyPair(dir *SSHDir, name string) (*model.SSHKey, error) {
 	pubPath := dir.Path(name + ".pub")
 	pubData, err := os.ReadFile(pubPath)
@@ -129,6 +146,14 @@ func parseKeyPair(dir *SSHDir, name string) (*model.SSHKey, error) {
 	privPath := dir.Path(name)
 	hasPrivate := fileExists(privPath)
 
+	var totalSize int64
+	if pubInfo, err := os.Stat(pubPath); err == nil {
+		totalSize += pubInfo.Size()
+	}
+	if privInfo, err := os.Stat(privPath); err == nil {
+		totalSize += privInfo.Size()
+	}
+
 	return &model.SSHKey{
 		Name:        name,
 		Type:        pubKey.Type(),
@@ -137,6 +162,7 @@ func parseKeyPair(dir *SSHDir, name string) (*model.SSHKey, error) {
 		Comment:     comment,
 		HasPrivate:  hasPrivate,
 		ModTime:     info.ModTime(),
+		Size:        totalSize,
 	}, nil
 }
 

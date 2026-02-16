@@ -18,7 +18,11 @@ func (p *Pages) KeysPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view.KeysPage(keys).Render(r.Context(), w)
+	refCount, err := ssh.KeyRefCount(p.Dir)
+	if err != nil {
+		refCount = make(map[string]int)
+	}
+	view.KeysPage(keys, refCount).Render(r.Context(), w)
 }
 
 func (p *Pages) ConfigPage(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +30,11 @@ func (p *Pages) ConfigPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		hosts = nil // show empty state if config doesn't exist
 	}
-	view.ConfigPage(hosts).Render(r.Context(), w)
+	keys, err := ssh.ListKeys(p.Dir)
+	if err != nil {
+		keys = nil
+	}
+	view.ConfigPage(hosts, keys, p.Dir).Render(r.Context(), w)
 }
 
 func (p *Pages) KnownHostsPage(w http.ResponseWriter, r *http.Request) {

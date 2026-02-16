@@ -6,10 +6,11 @@ Built with Go, [Templ](https://templ.guide), [HTMX](https://htmx.org), and [Pico
 
 ## Features
 
-- **Key Management** — List, generate (ed25519/RSA/ECDSA), inspect, and delete SSH key pairs
-- **Config Editor** — View and edit `~/.ssh/config` hosts via structured form or raw text editor
+- **Key Management** — List, generate (ed25519/RSA/ECDSA), inspect, edit comment, and delete SSH key pairs
+- **Config Editor** — View and edit `~/.ssh/config` hosts via structured form or raw text editor, with duplicate detection
 - **Known Hosts** — Browse, search, filter, and remove known_hosts entries
 - **Backup & Restore** — Create tar.gz snapshots of `~/.ssh`, restore with automatic safety backup
+- **Dark Mode** — Toggle between light, dark, and auto (system) themes
 
 ## Prerequisites
 

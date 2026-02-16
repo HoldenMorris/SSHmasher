@@ -22,6 +22,13 @@ nav a[aria-current="page"] {
     font-size: 0.85em;
 }
 
+/* Public key display */
+.public-key {
+    word-break: break-all;
+    max-width: 600px;
+    text-wrap: auto;
+}
+
 /* Raw editor textarea */
 textarea.raw-editor {
     font-family: var(--pico-font-family-monospace);
@@ -55,4 +62,9 @@ textarea.raw-editor {
 /* Confirmation dialog overlay */
 dialog::backdrop {
     background: rgba(0, 0, 0, 0.5);
+}
+
+/* Div grid under hgroup needs bottom margin */
+hgroup + .grid {
+    margin-bottom: var(--pico-spacing);
 }

@@ -170,6 +170,70 @@ func TestUpdateHost(t *testing.T) {
 	}
 }
 
+func TestUpdateHostMultiPattern(t *testing.T) {
+	dir := NewSSHDir(t.TempDir())
+	configContent := `Host foo bar
+    HostName old.example.com
+    User olduser
+
+Host other
+    HostName other.example.com
+`
+	os.WriteFile(dir.ConfigPath(), []byte(configContent), 0600)
+
+	updated := model.HostEntry{
+		Alias:    "foo",
+		HostName: "new.example.com",
+		User:     "newuser",
+	}
+
+	if err := UpdateHost(dir, updated); err != nil {
+		t.Fatalf("UpdateHost failed: %v", err)
+	}
+
+	host, err := GetHost(dir, "foo")
+	if err != nil {
+		t.Fatalf("GetHost after update failed: %v", err)
+	}
+	if host.HostName != "new.example.com" {
+		t.Fatalf("expected hostname 'new.example.com', got '%s'", host.HostName)
+	}
+
+	other, err := GetHost(dir, "other")
+	if err != nil {
+		t.Fatalf("GetHost for 'other' failed: %v", err)
+	}
+	if other.HostName != "other.example.com" {
+		t.Fatalf("expected other hostname 'other.example.com', got '%s'", other.HostName)
+	}
+}
+
+func TestDeleteHostMultiPattern(t *testing.T) {
+	dir := NewSSHDir(t.TempDir())
+	configContent := `Host foo bar
+    HostName remove.example.com
+
+Host keep
+    HostName keep.example.com
+`
+	os.WriteFile(dir.ConfigPath(), []byte(configContent), 0600)
+
+	if err := DeleteHost(dir, "foo"); err != nil {
+		t.Fatalf("DeleteHost failed: %v", err)
+	}
+
+	hosts, err := ListHosts(dir)
+	if err != nil {
+		t.Fatalf("ListHosts failed: %v", err)
+	}
+	if len(hosts) != 1 {
+		t.Fatalf("expected 1 host after delete, got %d", len(hosts))
+	}
+	if hosts[0].Alias != "keep" {
+		t.Fatalf("expected remaining host 'keep', got '%s'", hosts[0].Alias)
+	}
+}
+
 func TestWriteConfig(t *testing.T) {
 	dir := NewSSHDir(t.TempDir())
 	content := "Host test\n    HostName test.com\n"

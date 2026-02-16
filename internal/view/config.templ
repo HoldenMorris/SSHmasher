@@ -3,9 +3,10 @@ package view
 import (
 	"fmt"
 	"github.com/holden/sshmasher/internal/model"
+	"github.com/holden/sshmasher/internal/ssh"
 )
 
-templ ConfigPage(hosts []model.HostEntry) {
+templ ConfigPage(hosts []model.HostEntry, keys []model.SSHKey, dir *ssh.SSHDir) {
 	@Layout("Config", "/config") {
 		<hgroup>
 			<h2>SSH Config</h2>
@@ -18,19 +19,40 @@ templ ConfigPage(hosts []model.HostEntry) {
 			<div>
 				<a href="/config" hx-get="/api/config/raw" hx-target="#config-content" hx-swap="innerHTML" role="button" class="outline secondary">Raw Editor</a>
 			</div>
+			<div>
+				<button
+					hx-get="/api/config/hosts/new"
+					hx-target="#config-modal-content"
+					hx-swap="innerHTML"
+					hx-on::after-request="if(event.detail.successful) document.getElementById('config-modal').showModal()"
+				>
+					<i class="fa-solid fa-plus" aria-hidden="true"></i> Add Host
+				</button>
+			</div>
 		</div>
-		<div id="config-add">
-			@ConfigAddForm()
+		<div>
+			<input
+				type="search"
+				name="search"
+				placeholder="Filter by alias, hostname, user..."
+				hx-get="/api/config/hosts"
+				hx-target="#config-content"
+				hx-swap="innerHTML"
+				hx-trigger="input changed delay:300ms, search"
+			/>
 		</div>
 		<div id="config-content">
-			@ConfigHostsTable(hosts)
+			@ConfigHostsTable(hosts, keys, dir)
 		</div>
+		<dialog id="config-modal">
+			<div id="config-modal-content"></div>
+		</dialog>
 	}
 }
 
-templ ConfigHostsTable(hosts []model.HostEntry) {
+templ ConfigHostsTable(hosts []model.HostEntry, keys []model.SSHKey, dir *ssh.SSHDir) {
 	if len(hosts) == 0 {
-		@EmptyState("No SSH hosts configured. Add one above.")
+		@EmptyState("No SSH hosts configured. Click 'Add Host' to create one.")
 	} else {
 		<figure>
 			<table>
@@ -46,7 +68,7 @@ templ ConfigHostsTable(hosts []model.HostEntry) {
 				</thead>
 				<tbody>
 					for _, host := range hosts {
-						@ConfigHostRow(host)
+						@ConfigHostRow(host, keys, dir)
 					}
 				</tbody>
 			</table>
@@ -54,45 +76,54 @@ templ ConfigHostsTable(hosts []model.HostEntry) {
 	}
 }
 
-templ ConfigHostRow(host model.HostEntry) {
+templ ConfigHostRow(host model.HostEntry, keys []model.SSHKey, dir *ssh.SSHDir) {
 	<tr id={ "host-" + host.Alias }>
 		<td>{ host.Alias }</td>
 		<td>{ host.HostName }</td>
 		<td>{ host.User }</td>
 		<td>{ host.Port }</td>
-		<td>{ host.IdentityFile }</td>
 		<td>
-			<div class="grid">
-				<button
-					hx-get={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
-					hx-target="#config-edit"
-					hx-swap="innerHTML"
-					class="outline"
-				>
-					Edit
-				</button>
-				<button
-					hx-delete={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
-					hx-confirm={ fmt.Sprintf("Delete host '%s'?", host.Alias) }
-					hx-target="#config-content"
-					hx-swap="innerHTML"
-					class="outline secondary"
-				>
-					Delete
-				</button>
-			</div>
+			if host.IdentityFile != "" && !dir.IsKeyFile(host.IdentityFile) {
+				<span style="color: red;">{ host.IdentityFile } (missing)</span>
+			} else {
+				{ host.IdentityFile }
+			}
+		</td>
+		<td>
+			<button
+				hx-get={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
+				hx-target="#config-modal-content"
+				hx-swap="innerHTML"
+				hx-on::after-request="if(event.detail.successful) document.getElementById('config-modal').showModal()"
+				class="outline"
+				aria-label="Edit"
+			>
+				<i class="fa-solid fa-pen" aria-hidden="true"></i>
+			</button>
+			<button
+				hx-delete={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
+				hx-confirm={ fmt.Sprintf("Delete host '%s'?", host.Alias) }
+				hx-target="#config-content"
+				hx-swap="innerHTML"
+				class="outline secondary"
+				aria-label="Delete"
+			>
+				<i class="fa-solid fa-trash" aria-hidden="true"></i>
+			</button>
 		</td>
 	</tr>
 }
 
-templ ConfigAddForm() {
-	<details>
-		<summary role="button" class="outline">Add Host</summary>
+templ ConfigAddForm(keys []model.SSHKey) {
+	<article>
+		<header>
+			<h3>Add Host</h3>
+		</header>
 		<form
 			hx-post="/api/config/hosts"
 			hx-target="#config-content"
 			hx-swap="innerHTML"
-			hx-on::after-request="if(event.detail.successful) this.reset()"
+			hx-on::after-request="if(event.detail.successful) document.getElementById('config-modal').close()"
 		>
 			<div class="grid">
 				<label>
@@ -116,15 +147,26 @@ templ ConfigAddForm() {
 			</div>
 			<label>
 				Identity File
-				<input type="text" name="identityfile" placeholder="~/.ssh/id_ed25519"/>
+				if len(keys) > 0 {
+					<select name="identityfile">
+						<option value="">None</option>
+						for _, key := range keys {
+							<option value={ key.Name }>{ key.Name }</option>
+						}
+					</select>
+				} else {
+					<input type="text" name="identityfile" placeholder="~/.ssh/id_ed25519"/>
+				}
 			</label>
-			<button type="submit">Add Host</button>
+			<footer>
+				<button type="submit">Add Host</button>
+				<button type="button" class="outline secondary" onclick="document.getElementById('config-modal').close()">Cancel</button>
+			</footer>
 		</form>
-	</details>
-	<div id="config-edit"></div>
+	</article>
 }
 
-templ ConfigEditForm(host model.HostEntry) {
+templ ConfigEditForm(host model.HostEntry, keys []model.SSHKey) {
 	<article>
 		<header>
 			<h3>Edit: { host.Alias }</h3>
@@ -133,6 +175,7 @@ templ ConfigEditForm(host model.HostEntry) {
 			hx-put={ fmt.Sprintf("/api/config/hosts/%s", host.Alias) }
 			hx-target="#config-content"
 			hx-swap="innerHTML"
+			hx-on::after-request="if(event.detail.successful) document.getElementById('config-modal').close()"
 		>
 			<div class="grid">
 				<label>
@@ -151,13 +194,26 @@ templ ConfigEditForm(host model.HostEntry) {
 				</label>
 				<label>
 					Identity File
-					<input type="text" name="identityfile" value={ host.IdentityFile }/>
+					if len(keys) > 0 {
+						<select name="identityfile">
+							<option value="">None</option>
+							for _, key := range keys {
+								if key.Name == host.IdentityFile {
+									<option value={ key.Name } selected>{ key.Name }</option>
+								} else {
+									<option value={ key.Name }>{ key.Name }</option>
+								}
+							}
+						</select>
+					} else {
+						<input type="text" name="identityfile" value={ host.IdentityFile }/>
+					}
 				</label>
 			</div>
-			<div class="grid">
+			<footer>
 				<button type="submit">Save</button>
-				<button type="button" class="outline secondary" hx-get="/api/config/hosts" hx-target="#config-content" hx-swap="innerHTML">Cancel</button>
-			</div>
+				<button type="button" class="outline secondary" onclick="document.getElementById('config-modal').close()">Cancel</button>
+			</footer>
 		</form>
 	</article>
 }
